@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b5d56" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>MPK-PMB XXIX</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast hidden"></div>
+
+  <section id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <img src="icons/icon-192.png" class="brand-icon" alt="MPK-PMB" />
+      <h1>MPK-PMB Angkatan XXIX</h1>
+      <p>Politeknik Kelautan dan Perikanan Bitung</p>
+      <div id="cloudLogin" class="hidden">
+        <label>Email penilai</label>
+        <input id="emailInput" type="email" autocomplete="username" placeholder="penilai@kampus.id" />
+        <label>Password</label>
+        <input id="passwordInput" type="password" autocomplete="current-password" placeholder="••••••••" />
+        <button id="cloudLoginBtn" class="primary big">Masuk Online</button>
+      </div>
+      <div id="demoLogin">
+        <div class="notice">Mode uji coba lokal. Data tersimpan di HP ini. Sinkron internet aktif setelah konfigurasi Supabase diisi.</div>
+        <label>Nama Penilai</label>
+        <input id="demoName" value="Pembina MPK-PMB" placeholder="Nama penilai" />
+        <label>Peran</label>
+        <select id="demoRole"><option value="assessor">Penilai/Pembina</option><option value="coordinator">Koordinator/Admin</option></select>
+        <button id="demoLoginBtn" class="primary big">Masuk Demo</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="topbar">
+      <div><strong>MPK-PMB XXIX</strong><small id="userLabel"></small></div>
+      <div class="top-actions">
+        <span id="onlineBadge" class="badge">Offline</span>
+        <button id="syncBtn" class="icon-btn" title="Sinkronkan">↻</button>
+        <button id="installBtn" class="icon-btn hidden" title="Pasang aplikasi">⬇</button>
+        <button id="logoutBtn" class="icon-btn" title="Keluar">↪</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="dashboardView" class="view active">
+        <div class="hero">
+          <div><h2>Dashboard Koordinator</h2><p>Capaian dan peringatan dini 80 Catar-Catir.</p></div>
+          <select id="programFilter"><option value="ALL">Semua Prodi</option><option>TPI</option><option>MP</option><option>TPPP</option></select>
+        </div>
+        <div id="statsGrid" class="stats-grid"></div>
+        <div class="panel">
+          <div class="panel-head"><h3>Profil Capaian Peserta</h3><button id="exportBtn" class="secondary">Ekspor CSV</button></div>
+          <div id="participantSummary" class="participant-list"></div>
+        </div>
+      </section>
+
+      <section id="assessmentView" class="view">
+        <div class="hero"><div><h2>Penilaian Cepat</h2><p>Masukkan nomor 01–80, pilih bidang, lalu tekan skor.</p></div></div>
+        <div class="panel search-panel">
+          <label>Nomor Catar-Catir</label>
+          <div class="number-search"><input id="participantNo" inputmode="numeric" maxlength="2" placeholder="01" /><button id="findBtn" class="primary">Cari</button></div>
+          <div id="participantCard" class="participant-card empty">Belum ada peserta dipilih.</div>
+        </div>
+        <div id="assessmentControls" class="hidden">
+          <div class="panel">
+            <label>Kegiatan/Checkpoint</label>
+            <select id="activitySelect"></select>
+            <label>Bidang Penilaian</label>
+            <div id="categoryButtons" class="category-grid"></div>
+          </div>
+          <div id="rubricPanel" class="panel hidden"></div>
+        </div>
+      </section>
+
+      <section id="historyView" class="view">
+        <div class="hero"><div><h2>Riwayat Penilaian</h2><p>Telusuri perkembangan setiap Catar-Catir.</p></div></div>
+        <div class="panel filters">
+          <input id="historyNo" inputmode="numeric" maxlength="2" placeholder="Nomor peserta (opsional)" />
+          <select id="historyCategory"><option value="ALL">Semua bidang</option></select>
+          <button id="historyRefresh" class="secondary">Tampilkan</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <section id="adminView" class="view">
+        <div class="hero"><div><h2>Pengaturan</h2><p>Status penyimpanan lokal dan sinkronisasi internet.</p></div></div>
+        <div class="panel">
+          <h3>Status Sistem</h3>
+          <div id="systemStatus" class="system-status"></div>
+          <div class="button-stack">
+            <button id="adminSyncBtn" class="primary">Sinkronkan Sekarang</button>
+            <button id="seedBtn" class="secondary">Kirim 80 Peserta ke Cloud</button>
+            <button id="clearLocalBtn" class="danger">Hapus Data Penilaian Lokal (Demo)</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button data-view="dashboardView" class="nav-btn active"><span>▦</span><small>Dashboard</small></button>
+      <button data-view="assessmentView" class="nav-btn"><span>＋</span><small>Nilai</small></button>
+      <button data-view="historyView" class="nav-btn"><span>≡</span><small>Riwayat</small></button>
+      <button data-view="adminView" class="nav-btn"><span>⚙</span><small>Setelan</small></button>
+    </nav>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="roster.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
