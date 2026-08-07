@@ -1,0 +1,27 @@
+(()=>{'use strict';
+const CFG=window.MPK_CONFIG;
+if(!CFG?.SUPABASE_URL||!CFG?.SUPABASE_PUBLISHABLE_KEY||!window.supabase)return;
+const sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_PUBLISHABLE_KEY);
+const LS='mpkpmb29_assessments',USER='mpkpmb29_user';
+const $=id=>document.getElementById(id);
+const readLocal=()=>{try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch{return[]}};
+const writeLocal=a=>localStorage.setItem(LS,JSON.stringify(a));
+function notify(msg){const e=$('toast');if(e){e.textContent=msg;e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),2600)}else alert(msg)}
+async function getProfile(user){const {data,error}=await sb.from('profiles').select('full_name,role').eq('user_id',user.id).single();if(error)throw error;return data}
+async function applySession(session,reload=true){if(!session?.user)return null;const p=await getProfile(session.user);localStorage.setItem(USER,JSON.stringify({name:p.full_name||session.user.email,role:p.role,email:session.user.email,cloud:true}));if(reload)location.reload();return p}
+async function signIn(){const email=$('emailInput').value.trim(),password=$('passwordInput').value;if(!email||!password)return notify('Isi email dan password.');$('cloudLoginBtn').disabled=true;try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;await applySession(data.session)}catch(e){notify('Login gagal: '+(e.message||e))}finally{$('cloudLoginBtn').disabled=false}}
+async function signUp(){const email=$('emailInput').value.trim(),password=$('passwordInput').value,name=$('cloudName')?.value.trim();if(!name||!email||password.length<6)return notify('Isi nama, email, dan password minimal 6 karakter.');$('cloudSignupBtn').disabled=true;try{const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:name}}});if(error)throw error;if(data.session){await applySession(data.session)}else notify('Akun dibuat. Periksa email untuk konfirmasi, lalu masuk kembali.')}catch(e){notify('Pendaftaran gagal: '+(e.message||e))}finally{$('cloudSignupBtn').disabled=false}}
+function toCloud(x,user,name){return{client_id:String(x.id),participant_id:x.participant_id,category:x.category,activity:x.activity,scores:x.scores||{},final_score:x.final_score,discipline_status:x.discipline_status||null,notes:x.notes||'',assessor_id:user.id,assessor_name:x.assessor_name||name,created_at:x.created_at}}
+async function pushPending(user,profile){const local=readLocal(),pending=local.filter(x=>!x.synced);if(!pending.length)return 0;const rows=pending.map(x=>toCloud(x,user,profile.full_name||user.email));const {data,error}=await sb.from('assessments').upsert(rows,{onConflict:'client_id'}).select('client_id');if(error)throw error;const done=new Set((data||[]).map(x=>String(x.client_id)));local.forEach(x=>{if(done.has(String(x.id)))x.synced=true});writeLocal(local);return done.size}
+async function pullCloud(){const {data,error}=await sb.from('assessments').select('*').order('created_at',{ascending:false}).limit(5000);if(error)throw error;const local=readLocal(),byId=new Map(local.map(x=>[String(x.id),x]));for(const r of data||[]){const id=String(r.client_id||r.id),p=(window.MPK_ROSTER||[]).find(x=>x.id===r.participant_id);byId.set(id,{id,participant_id:r.participant_id,code:p?.code||String(r.participant_id).padStart(2,'0'),name:p?.name||'Peserta',program:p?.program||'',category:r.category,activity:r.activity,scores:r.scores||{},final_score:r.final_score==null?null:Number(r.final_score),discipline_status:r.discipline_status,notes:r.notes||'',assessor_name:r.assessor_name,created_at:r.created_at,synced:true})}writeLocal([...byId.values()]);return (data||[]).length}
+async function sync(show=true){if(!navigator.onLine){if(show)notify('Tidak ada koneksi internet. Data tetap tersimpan di HP.');return}const {data:{session}}=await sb.auth.getSession();if(!session){if(show)notify('Silakan masuk menggunakan akun Online agar data tersinkron.');return}try{const profile=await getProfile(session.user),pushed=await pushPending(session.user,profile),pulled=await pullCloud();if(show)notify(`Sinkron selesai: ${pushed} dikirim, ${pulled} data cloud dibaca.`);setTimeout(()=>location.reload(),show?900:0)}catch(e){if(show)notify('Sinkron gagal: '+(e.message||e))}}
+async function init(){const cloud=$('cloudLogin');if(cloud){cloud.classList.remove('hidden');const demo=$('demoLogin');if(demo){const n=demo.querySelector('.notice');if(n)n.textContent='Mode Demo hanya untuk keadaan darurat/offline. Untuk penggunaan bersama, gunakan Masuk Online.'}$('cloudLoginBtn').onclick=signIn;$('cloudSignupBtn')?.addEventListener('click',signUp)}
+const {data:{session}}=await sb.auth.getSession();if(session){try{const raw=localStorage.getItem(USER),u=raw?JSON.parse(raw):null;if(!u?.cloud)await applySession(session,false);setTimeout(()=>sync(false),600)}catch{}}
+const logout=$('logoutBtn');if(logout)logout.onclick=async()=>{await sb.auth.signOut();localStorage.removeItem(USER);location.reload()};
+const syncBtn=$('syncBtn'),adminSync=$('adminSyncBtn');if(syncBtn)syncBtn.onclick=()=>sync(true);if(adminSync)adminSync.onclick=()=>sync(true);
+document.addEventListener('click',e=>{if(e.target?.id==='saveAssessmentBtn')setTimeout(()=>sync(false),500)},true);
+setInterval(()=>sync(false),Math.max(15,Number(CFG.AUTO_SYNC_SECONDS)||30)*1000);
+window.MPK_CLOUD={sync,client:sb};
+}
+document.addEventListener('DOMContentLoaded',init);
+})();
