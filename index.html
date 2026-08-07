@@ -19,14 +19,18 @@
       <h1>MPK-PMB Angkatan XXIX</h1>
       <p>Politeknik Kelautan dan Perikanan Bitung</p>
       <div id="cloudLogin" class="hidden">
+        <div class="notice">Gunakan akun Online agar nilai dari semua HP tersimpan pada database yang sama.</div>
+        <label>Nama lengkap <small>(diisi saat membuat akun)</small></label>
+        <input id="cloudName" type="text" autocomplete="name" placeholder="Nama lengkap pembina" />
         <label>Email penilai</label>
         <input id="emailInput" type="email" autocomplete="username" placeholder="penilai@kampus.id" />
         <label>Password</label>
-        <input id="passwordInput" type="password" autocomplete="current-password" placeholder="••••••••" />
+        <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Minimal 6 karakter" />
         <button id="cloudLoginBtn" class="primary big">Masuk Online</button>
+        <button id="cloudSignupBtn" class="secondary big" style="margin-top:8px;width:100%">Buat Akun Baru</button>
       </div>
       <div id="demoLogin">
-        <div class="notice">Mode uji coba lokal. Data tersimpan di HP ini. Sinkron internet aktif setelah konfigurasi Supabase diisi.</div>
+        <div class="notice">Mode Demo hanya untuk keadaan darurat/offline. Data demo tersimpan di perangkat ini.</div>
         <label>Nama Penilai</label>
         <input id="demoName" value="Pembina MPK-PMB" placeholder="Nama penilai" />
         <label>Peran</label>
@@ -110,9 +114,11 @@
     </nav>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="roster.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
+  <script src="cloud.js"></script>
 </body>
 </html>
