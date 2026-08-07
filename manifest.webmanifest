@@ -1,0 +1,10 @@
+{
+  "name":"MPK-PMB Angkatan XXIX",
+  "short_name":"MPK-PMB XXIX",
+  "start_url":"./index.html",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#f4f7f8",
+  "theme_color":"#0b5d56",
+  "description":"Aplikasi penilaian MPK-PMB Politeknik KP Bitung"
+}
