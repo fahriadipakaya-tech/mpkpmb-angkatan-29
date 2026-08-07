@@ -7,16 +7,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>MPK-PMB XXIX</title>
-  <link rel="manifest" href="manifest.webmanifest?v=20260807d" />
-  <link rel="icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=20260807d" />
+  <link rel="manifest" href="manifest.webmanifest?v=20260807g" />
+  <link rel="icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css?v=20260807g" />
 </head>
 <body>
   <div id="toast" class="toast hidden"></div>
 
   <section id="loginScreen" class="login-screen">
     <div class="login-card">
-      <img src="icons/icon-192.png" class="brand-icon" alt="MPK-PMB" />
+      <img src="icon.svg" class="brand-icon" alt="MPK-PMB" />
       <h1>MPK-PMB Angkatan XXIX</h1>
       <p>Politeknik Kelautan dan Perikanan Bitung</p>
       <div id="cloudLogin" class="hidden">
@@ -124,11 +124,11 @@
       caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('mpkpmb-')).map(k => caches.delete(k)))).catch(()=>{});
     }
   </script>
-  <script src="config.js?v=20260807d"></script>
+  <script src="config.js?v=20260807g"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="roster.js?v=20260807d"></script>
-  <script src="data.js?v=20260807d"></script>
-  <script src="app.js?v=20260807d"></script>
-  <script src="cloud.js?v=20260807d"></script>
+  <script src="roster.js?v=20260807g"></script>
+  <script src="data.js?v=20260807g"></script>
+  <script src="app.js?v=20260807g"></script>
+  <script src="cloud.js?v=20260807g"></script>
 </body>
 </html>
