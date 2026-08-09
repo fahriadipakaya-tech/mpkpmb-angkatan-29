@@ -32,19 +32,70 @@ jobs:
       - name: Install Android SDK components
         run: yes | sdkmanager --licenses >/dev/null || true
 
-      - name: Prepare centered Politeknik KP Bitung logo
+      - name: Prepare Android adaptive launcher icon
         run: |
-          mkdir -p android/app/src/main/res/drawable
           python3 - <<'PY'
           import base64, re
-          src='android/logo-politeknik-kp-bitung.b64'
-          dst='android/app/src/main/res/drawable/politeknik_logo.jpg'
-          s=open(src,'r',encoding='utf-8').read()
-          s=re.sub(r'[^A-Za-z0-9+/=]','',s)
-          s += '=' * ((4-len(s)%4)%4)
-          data=base64.b64decode(s, validate=False)
-          open(dst,'wb').write(data)
-          print('logo bytes:', len(data))
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path('android/app/src/main/res')
+          src = Path('android/logo-politeknik-kp-bitung.b64')
+          text = re.sub(r'[^A-Za-z0-9+/=]', '', src.read_text(encoding='utf-8'))
+          text += '=' * ((4 - len(text) % 4) % 4)
+          raw = base64.b64decode(text, validate=False)
+
+          raw_dir = root / 'drawable-nodpi'
+          raw_dir.mkdir(parents=True, exist_ok=True)
+          raw_path = raw_dir / 'politeknik_logo.jpg'
+          raw_path.write_bytes(raw)
+          logo = Image.open(raw_path).convert('RGBA')
+
+          # Adaptive foreground: transparent 432x432 canvas, logo centered in Android safe zone.
+          fg = Image.new('RGBA', (432, 432), (0, 0, 0, 0))
+          mark = logo.copy()
+          mark.thumbnail((260, 260), Image.Resampling.LANCZOS)
+          fg.alpha_composite(mark, ((432-mark.width)//2, (432-mark.height)//2))
+          fg.save(raw_dir / 'ic_launcher_foreground.png', 'PNG')
+
+          # Legacy launcher icons for Android versions/launchers that do not use adaptive icons.
+          densities = {
+              'mipmap-mdpi': 48,
+              'mipmap-hdpi': 72,
+              'mipmap-xhdpi': 96,
+              'mipmap-xxhdpi': 144,
+              'mipmap-xxxhdpi': 192,
+          }
+          for folder, size in densities.items():
+              d = root / folder
+              d.mkdir(parents=True, exist_ok=True)
+              canvas = Image.new('RGBA', (size, size), (255, 255, 255, 255))
+              icon = logo.copy()
+              target = int(size * 0.82)
+              icon.thumbnail((target, target), Image.Resampling.LANCZOS)
+              canvas.alpha_composite(icon, ((size-icon.width)//2, (size-icon.height)//2))
+              canvas.save(d / 'ic_launcher.png', 'PNG')
+              canvas.save(d / 'ic_launcher_round.png', 'PNG')
+
+          # Adaptive icon XML (Android 8+). Samsung/One UI will mask this safely.
+          anydpi = root / 'mipmap-anydpi-v26'
+          anydpi.mkdir(parents=True, exist_ok=True)
+          adaptive = '''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>\n'''
+          (anydpi / 'ic_launcher.xml').write_text(adaptive, encoding='utf-8')
+          (anydpi / 'ic_launcher_round.xml').write_text(adaptive, encoding='utf-8')
+
+          values = root / 'values'
+          values.mkdir(parents=True, exist_ok=True)
+          (values / 'launcher_colors.xml').write_text('''<?xml version="1.0" encoding="utf-8"?>
+          <resources><color name="ic_launcher_background">#FFFFFF</color></resources>\n''', encoding='utf-8')
+
+          print('Logo source:', logo.size)
+          print('Adaptive foreground:', mark.size)
+          print('Launcher resources generated successfully')
           PY
 
       - name: Build APK
@@ -54,22 +105,22 @@ jobs:
       - name: Prepare downloadable APK
         run: |
           mkdir -p downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/MPK-PMB-XXIX-v1.2.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/MPK-PMB-XXIX-v1.3.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MPK-PMB-XXIX-Android-v1.2
-          path: downloads/MPK-PMB-XXIX-v1.2.apk
+          name: MPK-PMB-XXIX-Android-v1.3
+          path: downloads/MPK-PMB-XXIX-v1.3.apk
 
       - name: Publish APK to GitHub Pages repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add downloads/MPK-PMB-XXIX-v1.2.apk
+          git add downloads/MPK-PMB-XXIX-v1.3.apk
           if git diff --cached --quiet; then
             echo "APK unchanged"
           else
-            git commit -m "Publish Android APK v1.2"
+            git commit -m "Publish Android APK v1.3"
             git push
           fi
