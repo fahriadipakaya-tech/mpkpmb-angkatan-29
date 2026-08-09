@@ -7,9 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>MPK-PMB XXIX</title>
-  <link rel="manifest" href="manifest.webmanifest?v=20260807g" />
+  <link rel="manifest" href="manifest.webmanifest?v=20260809mbk" />
   <link rel="icon" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=20260807g" />
+  <link rel="stylesheet" href="styles.css?v=20260809mbk" />
+  <style>.talent-top-link{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#eaf2f1;color:#0b5d56;text-decoration:none;font-weight:900;font-size:19px}.talent-banner{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#eef8f6;border:1px solid #c6e5e0;border-radius:16px;padding:13px 14px;margin-bottom:14px}.talent-banner strong{display:block;color:#0b5d56}.talent-banner small{color:#64748b}.talent-banner a{background:#0b5d56;color:#fff;text-decoration:none;padding:10px 12px;border-radius:11px;font-weight:800;white-space:nowrap}@media(max-width:600px){.talent-banner{align-items:flex-start;flex-direction:column}.talent-banner a{width:100%;text-align:center}}</style>
 </head>
 <body>
   <div id="toast" class="toast hidden"></div>
@@ -46,6 +47,7 @@
     <header class="topbar">
       <div><strong>MPK-PMB XXIX</strong><small id="userLabel"></small></div>
       <div class="top-actions">
+        <a href="minat-bakat.html" class="talent-top-link" title="Minat & Bakat">★</a>
         <span id="onlineBadge" class="badge">Offline</span>
         <button id="syncBtn" class="icon-btn" title="Sinkronkan">↻</button>
         <button id="installBtn" class="icon-btn hidden" title="Pasang aplikasi">⬇</button>
@@ -59,6 +61,7 @@
           <div><h2>Dashboard Koordinator</h2><p>Capaian dan peringatan dini 80 Catar-Catir.</p></div>
           <select id="programFilter"><option value="ALL">Semua Prodi</option><option>TPI</option><option>MP</option><option>TPPP</option></select>
         </div>
+        <div class="talent-banner"><div><strong>★ Minat & Bakat Angkatan XXIX</strong><small>Lihat hobi, prestasi, kokurikuler, ekstrakurikuler, dan peta potensi 80 Taruna/i.</small></div><a href="minat-bakat.html">Buka Minat & Bakat</a></div>
         <div id="statsGrid" class="stats-grid"></div>
         <div class="panel">
           <div class="panel-head"><h3>Profil Capaian Peserta</h3><button id="exportBtn" class="secondary">Ekspor CSV</button></div>
@@ -124,11 +127,11 @@
       caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('mpkpmb-')).map(k => caches.delete(k)))).catch(()=>{});
     }
   </script>
-  <script src="config.js?v=20260807g"></script>
+  <script src="config.js?v=20260809mbk"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="roster.js?v=20260807g"></script>
-  <script src="data.js?v=20260807g"></script>
-  <script src="app.js?v=20260807g"></script>
-  <script src="cloud.js?v=20260807g"></script>
+  <script src="roster.js?v=20260809mbk"></script>
+  <script src="data.js?v=20260809mbk"></script>
+  <script src="app.js?v=20260809mbk"></script>
+  <script src="cloud.js?v=20260809mbk"></script>
 </body>
 </html>
