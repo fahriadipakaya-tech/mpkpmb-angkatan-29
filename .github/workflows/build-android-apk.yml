@@ -35,7 +35,17 @@ jobs:
       - name: Prepare Politeknik KP Bitung logo
         run: |
           mkdir -p android/app/src/main/res/drawable
-          base64 -d android/logo-politeknik-kp-bitung.b64 > android/app/src/main/res/drawable/politeknik_logo.jpg
+          python3 - <<'PY'
+          import base64, re
+          src='android/logo-politeknik-kp-bitung.b64'
+          dst='android/app/src/main/res/drawable/politeknik_logo.jpg'
+          s=open(src,'r',encoding='utf-8').read()
+          s=re.sub(r'[^A-Za-z0-9+/=]','',s)
+          s += '=' * ((4-len(s)%4)%4)
+          data=base64.b64decode(s, validate=False)
+          open(dst,'wb').write(data)
+          print('logo bytes:', len(data))
+          PY
 
       - name: Build APK
         working-directory: android
