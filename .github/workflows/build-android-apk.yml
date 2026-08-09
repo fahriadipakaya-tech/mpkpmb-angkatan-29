@@ -32,6 +32,11 @@ jobs:
       - name: Install Android SDK components
         run: yes | sdkmanager --licenses >/dev/null || true
 
+      - name: Prepare Politeknik KP Bitung logo
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          base64 -d android/logo-politeknik-kp-bitung.b64 > android/app/src/main/res/drawable/politeknik_logo.jpg
+
       - name: Build APK
         working-directory: android
         run: gradle :app:assembleDebug --stacktrace
@@ -39,22 +44,22 @@ jobs:
       - name: Prepare downloadable APK
         run: |
           mkdir -p downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/MPK-PMB-XXIX-v1.0.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/MPK-PMB-XXIX-v1.1.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MPK-PMB-XXIX-Android
-          path: downloads/MPK-PMB-XXIX-v1.0.apk
+          name: MPK-PMB-XXIX-Android-v1.1
+          path: downloads/MPK-PMB-XXIX-v1.1.apk
 
       - name: Publish APK to GitHub Pages repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add downloads/MPK-PMB-XXIX-v1.0.apk
+          git add downloads/MPK-PMB-XXIX-v1.1.apk
           if git diff --cached --quiet; then
             echo "APK unchanged"
           else
-            git commit -m "Publish Android APK"
+            git commit -m "Publish Android APK v1.1"
             git push
           fi
