@@ -16,11 +16,4 @@ window.addEventListener('load', () => {
     s.defer = true;
     document.body.appendChild(s);
   }
-  if (!document.querySelector('script[data-mpk-photo]')) {
-    const p = document.createElement('script');
-    p.src = './photo.js?v=20260810photo1';
-    p.dataset.mpkPhoto = '1';
-    p.defer = true;
-    document.body.appendChild(p);
-  }
 });
