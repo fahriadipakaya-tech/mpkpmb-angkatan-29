@@ -1,98 +1,30 @@
 (()=>{'use strict';
-const CFG=window.MPK_CONFIG,ROSTER=window.MPK_ROSTER||[];
-if(!CFG?.SUPABASE_URL||!CFG?.SUPABASE_PUBLISHABLE_KEY)return;
-const $=id=>document.getElementById(id),USER='mpkpmb29_user';
-const FUNCTION_URL=`${CFG.SUPABASE_URL.replace(/\/$/,'')}/functions/v1/mpk-field`;
-let activeParticipantId=null,previewPayload=null,decorating=false;
-
-function readUser(){try{return JSON.parse(localStorage.getItem(USER)||'null')}catch{return null}}
-function notify(msg){const e=$('toast');if(e){e.textContent=msg;e.classList.remove('hidden');clearTimeout(notify.t);notify.t=setTimeout(()=>e.classList.add('hidden'),3600)}else alert(msg)}
-async function api(payload){
-  const r=await fetch(FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify(payload)});
-  let out={};try{out=await r.json()}catch{}
-  if(!r.ok||!out.ok){const e=new Error(out.error||`Server ${r.status}`);e.status=r.status;throw e}
-  return out;
-}
-
-function injectUI(){
-  if($('mpkPhotoCamera'))return;
-  const style=document.createElement('style');style.textContent=`
-  .mpk-photo-box{width:86px;min-width:86px;height:104px;border-radius:14px;overflow:hidden;border:1px solid #cddde1;background:#edf4f3;display:grid;place-items:center;position:relative}
-  .mpk-photo-box img{width:100%;height:100%;object-fit:cover;display:block}.mpk-photo-placeholder{font-size:34px;color:#7b9794}.mpk-photo-actions{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 0}.mpk-photo-actions button{border:1px solid #cbdcdf;background:#fff;color:#0b5d56;border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer}.mpk-photo-actions button.primary-photo{background:#0b5d56;color:#fff;border-color:#0b5d56}.mpk-photo-status{font-size:11px;color:#64748b;margin-top:6px}.mpk-photo-status.wait{color:#b45309;font-weight:800}.mpk-photo-status.ok{color:#0b6b61;font-weight:800}.participant-card .row{align-items:center;gap:10px}.mpk-photo-modal{position:fixed;inset:0;background:#0f172aaa;display:grid;place-items:center;z-index:500;padding:18px}.mpk-photo-modal.hidden{display:none}.mpk-photo-modal .box{background:#fff;width:min(430px,100%);border-radius:18px;padding:18px}.mpk-photo-modal img{display:block;max-width:100%;max-height:58vh;margin:0 auto;border-radius:14px}.mpk-photo-modal .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.mpk-photo-modal .acts button{min-height:44px;border-radius:11px;font-weight:900}.mpk-photo-modal .cancel{background:#fff;border:1px solid #cbd5e1}.mpk-photo-modal .use{background:#0b5d56;color:#fff;border:0}.mpk-photo-badge{position:absolute;right:5px;bottom:5px;background:#fffddf;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:900;color:#8a5a00}
-  @media(max-width:600px){.mpk-photo-box{width:72px;min-width:72px;height:88px}.mpk-photo-actions{display:grid;grid-template-columns:1fr 1fr}.mpk-photo-actions button{width:100%}}
-  `;document.head.appendChild(style);
-  const cam=document.createElement('input');cam.type='file';cam.id='mpkPhotoCamera';cam.accept='image/*';cam.setAttribute('capture','environment');cam.hidden=true;
-  const gal=document.createElement('input');gal.type='file';gal.id='mpkPhotoGallery';gal.accept='image/*';gal.hidden=true;
-  const modal=document.createElement('div');modal.id='mpkPhotoModal';modal.className='mpk-photo-modal hidden';modal.innerHTML='<div class="box"><h3>Periksa Foto Taruna</h3><p style="font-size:12px;color:#64748b">Pastikan wajah terlihat jelas dan foto sesuai Taruna yang sedang dipilih.</p><img id="mpkPhotoPreview" alt="Preview foto"><div class="acts"><button id="mpkPhotoCancel" class="cancel">Batal</button><button id="mpkPhotoUse" class="use">Gunakan Foto</button></div></div>';
-  document.body.append(cam,gal,modal);
-  cam.addEventListener('change',e=>handleSelected(e.target.files?.[0]));gal.addEventListener('change',e=>handleSelected(e.target.files?.[0]));
-  $('mpkPhotoCancel').onclick=closePreview;$('mpkPhotoUse').onclick=confirmPhoto;
-}
-
-function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('mpkpmb29_photo_queue',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('pending'))r.result.createObjectStore('pending',{keyPath:'participant_id'})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
-async function dbGet(id){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction('pending','readonly'),r=t.objectStore('pending').get(id);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}
-async function dbPut(x){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction('pending','readwrite');t.objectStore('pending').put(x);t.oncomplete=()=>resolve();t.onerror=()=>reject(t.error)})}
-async function dbDelete(id){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction('pending','readwrite');t.objectStore('pending').delete(id);t.oncomplete=()=>resolve();t.onerror=()=>reject(t.error)})}
-async function dbAll(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction('pending','readonly'),r=t.objectStore('pending').getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
-
-async function compress(file){
-  if(!file||!String(file.type).startsWith('image/'))throw new Error('Pilih file gambar.');
-  let source=null,w=0,h=0,cleanup=()=>{};
-  if('createImageBitmap'in window){try{source=await createImageBitmap(file,{imageOrientation:'from-image'});w=source.width;h=source.height;cleanup=()=>source.close?.()}catch{}}
-  if(!source){const url=URL.createObjectURL(file);source=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});w=source.naturalWidth;h=source.naturalHeight;cleanup=()=>URL.revokeObjectURL(url)}
-  const maxW=520,maxH=680,scale=Math.min(1,maxW/w,maxH/h),cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
-  const canvas=document.createElement('canvas');canvas.width=cw;canvas.height=ch;const ctx=canvas.getContext('2d');ctx.drawImage(source,0,0,cw,ch);cleanup();
-  let quality=.78,data=canvas.toDataURL('image/jpeg',quality);while(data.length>700000&&quality>.5){quality-=.08;data=canvas.toDataURL('image/jpeg',quality)}
-  return{data_url:data,width:cw,height:ch,approx_bytes:Math.round((data.length-data.indexOf(',')-1)*.75)};
-}
-
-async function handleSelected(file){
-  try{if(!file)return;previewPayload=await compress(file);$('mpkPhotoPreview').src=previewPayload.data_url;$('mpkPhotoModal').classList.remove('hidden')}catch(e){notify('Foto tidak dapat diproses: '+(e.message||e))}finally{if($('mpkPhotoCamera'))$('mpkPhotoCamera').value='';if($('mpkPhotoGallery'))$('mpkPhotoGallery').value=''}
-}
-function closePreview(){$('mpkPhotoModal')?.classList.add('hidden');previewPayload=null}
-
-async function confirmPhoto(){
-  const id=activeParticipantId,u=readUser();if(!id||!u?.name||!previewPayload)return closePreview();
-  const item={participant_id:id,name:u.name,image_data:previewPayload.data_url,width:previewPayload.width,height:previewPayload.height,created_at:new Date().toISOString()};
-  closePreview();setLocalPhoto(item.image_data,'Menyimpan foto...','wait');
-  if(!navigator.onLine){await dbPut(item);setLocalPhoto(item.image_data,'Menunggu sinkronisasi','wait',true);notify('Foto tersimpan sementara di HP. Akan dikirim saat online.');return}
-  try{const r=await api({action:'photo-upload',...item});await dbDelete(id).catch(()=>{});applyRemotePhoto(r.photo);notify('Foto Taruna berhasil disimpan.')}catch(e){
-    if(!e.status){await dbPut(item);setLocalPhoto(item.image_data,'Menunggu sinkronisasi','wait',true);notify('Sinyal bermasalah. Foto disimpan sementara di HP.')}else{notify(e.message||'Foto gagal disimpan.');await decorate(true)}
-  }
-}
-
-function photoEls(){return{img:$('mpkParticipantPhoto'),ph:$('mpkParticipantPhotoPlaceholder'),status:$('mpkParticipantPhotoStatus'),actions:$('mpkParticipantPhotoActions'),badge:$('mpkParticipantPhotoBadge')}}
-function setLocalPhoto(src,text,kind='',pending=false){const e=photoEls();if(!e.img)return;e.img.src=src;e.img.classList.remove('hidden');e.ph?.classList.add('hidden');if(e.status){e.status.textContent=text;e.status.className='mpk-photo-status '+kind}if(e.badge){e.badge.textContent=pending?'BELUM SYNC':'';e.badge.classList.toggle('hidden',!pending)}}
-function applyRemotePhoto(photo){const e=photoEls(),u=readUser();if(!e.img)return;if(photo?.url){e.img.src=photo.url;e.img.classList.remove('hidden');e.ph?.classList.add('hidden');e.status.textContent=`Foto tersimpan • ${photo.updated_by||'Penilai'}`;e.status.className='mpk-photo-status ok';e.badge?.classList.add('hidden');const canReplace=u?.role==='coordinator';if(e.actions)e.actions.classList.toggle('hidden',!canReplace)}else{e.img.removeAttribute('src');e.img.classList.add('hidden');e.ph?.classList.remove('hidden');e.status.textContent='Belum ada foto.';e.status.className='mpk-photo-status';if(e.actions)e.actions.classList.remove('hidden')}}
-
-async function decorate(force=false){
-  if(decorating)return;const card=$('participantCard');if(!card||card.classList.contains('empty'))return;
-  const id=parseInt($('participantNo')?.value||'',10);if(!id||!ROSTER.some(p=>p.id===id))return;
-  if(!force&&card.querySelector('#mpkParticipantPhoto'))return;
-  decorating=true;activeParticipantId=id;
-  try{
-    card.querySelector('.mpk-photo-actions')?.remove();card.querySelector('.mpk-photo-status')?.remove();card.querySelector('.mpk-photo-box')?.remove();
-    const row=card.querySelector('.row');if(!row)return;
-    const box=document.createElement('div');box.className='mpk-photo-box';box.innerHTML='<img id="mpkParticipantPhoto" class="hidden" alt="Foto Taruna"><div id="mpkParticipantPhotoPlaceholder" class="mpk-photo-placeholder">👤</div><span id="mpkParticipantPhotoBadge" class="mpk-photo-badge hidden"></span>';row.insertBefore(box,row.firstChild);
-    const actions=document.createElement('div');actions.id='mpkParticipantPhotoActions';actions.className='mpk-photo-actions';actions.innerHTML='<button type="button" id="mpkCameraBtn" class="primary-photo">📷 Kamera</button><button type="button" id="mpkGalleryBtn">🖼 Galeri</button>';
-    const status=document.createElement('div');status.id='mpkParticipantPhotoStatus';status.className='mpk-photo-status';status.textContent='Memeriksa foto...';row.after(actions,status);
-    $('mpkCameraBtn').onclick=()=>{activeParticipantId=id;$('mpkPhotoCamera').click()};$('mpkGalleryBtn').onclick=()=>{activeParticipantId=id;$('mpkPhotoGallery').click()};
-    const pending=await dbGet(id).catch(()=>null);if(pending){setLocalPhoto(pending.image_data,'Menunggu sinkronisasi','wait',true);return}
-    if(!navigator.onLine){status.textContent='Offline • foto server akan tampil saat online.';return}
-    const u=readUser();if(!u?.name)return;
-    try{const r=await api({action:'photo-get',name:u.name,participant_id:id});applyRemotePhoto(r.photo)}catch(e){status.textContent='Foto belum dapat dimuat.'}
-  }finally{decorating=false}
-}
-
-async function syncPending(){
-  if(!navigator.onLine)return;const u=readUser();if(!u?.name)return;const items=await dbAll().catch(()=>[]);if(!items.length)return;
-  for(const item of items){try{const r=await api({action:'photo-upload',...item,name:u.name});await dbDelete(item.participant_id);if(activeParticipantId===item.participant_id)applyRemotePhoto(r.photo)}catch(e){if(e.status===403){await dbDelete(item.participant_id);if(activeParticipantId===item.participant_id)await decorate(true)}}}
-}
-
-function init(){
-  injectUI();const card=$('participantCard');if(card){new MutationObserver(()=>setTimeout(()=>decorate(false),20)).observe(card,{childList:true,subtree:true});if(!card.classList.contains('empty'))decorate()}
-  window.addEventListener('online',()=>setTimeout(()=>{syncPending();decorate(true)},800));setTimeout(syncPending,1200);setInterval(syncPending,45000);
-  window.MPK_PHOTO={decorate,syncPending};
-}
+const USER_KEY='mpkpmb29_user';
+const DB_NAME='mpkpmb29_photo_queue',STORE='pending',DB_VERSION=1;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]||c));
+let enhancing=false;
+function user(){try{return JSON.parse(localStorage.getItem(USER_KEY)||'null')}catch{return null}}
+function toast(msg){const e=$('toast');if(!e)return alert(msg);e.textContent=msg;e.classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.add('hidden'),3300)}
+function cloud(){return window.MPK_CLOUD||null}
+function participant(){const n=parseInt($('participantNo')?.value||'',10);return (window.MPK_ROSTER||[]).find(x=>x.id===n)||null}
+function openDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'participant_id'})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function pendingGet(id){const d=await openDb();return new Promise((resolve,reject)=>{const tx=d.transaction(STORE,'readonly'),r=tx.objectStore(STORE).get(Number(id));r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}
+async function pendingPut(v){const d=await openDb();return new Promise((resolve,reject)=>{const tx=d.transaction(STORE,'readwrite');tx.objectStore(STORE).put(v);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function pendingDelete(id){const d=await openDb();return new Promise((resolve,reject)=>{const tx=d.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(Number(id));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}
+async function pendingAll(){const d=await openDb();return new Promise((resolve,reject)=>{const tx=d.transaction(STORE,'readonly'),r=tx.objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
+function readAsDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=()=>reject(r.error);r.readAsDataURL(file)})}
+function loadImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=url})}
+async function compress(file){const src=await readAsDataUrl(file),img=await loadImage(src);const maxW=600,maxH=800,scale=Math.min(1,maxW/img.width,maxH/img.height);const w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale));const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d',{alpha:false});ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);let quality=.78,data=canvas.toDataURL('image/jpeg',quality);while(data.length>900000&&quality>.48){quality-=.08;data=canvas.toDataURL('image/jpeg',quality)}return{dataUrl:data,mime:'image/jpeg',width:w,height:h}}
+function injectCss(){if(document.getElementById('photoFeatureCss'))return;const s=document.createElement('style');s.id='photoFeatureCss';s.textContent=`.participant-photo-panel{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:start;margin-top:12px;padding-top:12px;border-top:1px solid #dfe7ef}.participant-photo-frame{width:92px;height:116px;border-radius:14px;overflow:hidden;background:#edf3f2;border:1px solid #d4e1df;display:grid;place-items:center;position:relative}.participant-photo-frame img{width:100%;height:100%;object-fit:cover;display:block}.participant-photo-placeholder{font-size:34px;color:#8aa6a2}.participant-photo-info{min-width:0}.participant-photo-title{font-weight:900;color:#0b5d56;margin-bottom:3px}.participant-photo-status{font-size:11px;line-height:1.35;color:#64748b;margin-bottom:9px}.photo-actions{display:flex;flex-wrap:wrap;gap:7px}.photo-action{border:1px solid #c8dcda;background:#fff;color:#0b5d56;border-radius:10px;padding:8px 9px;font-weight:800;font-size:12px;cursor:pointer}.photo-action.primary-photo{background:#0b5d56;color:#fff;border-color:#0b5d56}.photo-pending-badge{display:inline-block;background:#fff4d8;color:#8b5e00;border:1px solid #edd598;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:800;margin-top:5px}@media(max-width:390px){.participant-photo-panel{grid-template-columns:82px 1fr}.participant-photo-frame{width:82px;height:104px}.photo-action{padding:8px 7px;font-size:11px}}`;document.head.appendChild(s)}
+function panelHtml(p){return `<div class="participant-photo-panel" data-photo-panel="${p.id}"><div class="participant-photo-frame"><div class="participant-photo-placeholder">👤</div><img id="participantPhotoImg" alt="Foto ${esc(p.name)}" hidden></div><div class="participant-photo-info"><div class="participant-photo-title">Foto Taruna/i</div><div id="participantPhotoStatus" class="participant-photo-status">Memeriksa foto...</div><div id="photoActions" class="photo-actions"><button type="button" id="takePhotoBtn" class="photo-action primary-photo">📷 Kamera</button><button type="button" id="galleryPhotoBtn" class="photo-action">🖼 Galeri</button></div><input id="photoCameraInput" type="file" accept="image/*" capture="environment" hidden><input id="photoGalleryInput" type="file" accept="image/*" hidden></div></div>`}
+function showPhoto(url,status,pending=false){const img=$('participantPhotoImg'),ph=document.querySelector('.participant-photo-placeholder'),st=$('participantPhotoStatus');if(img&&url){img.src=url;img.hidden=false;if(ph)ph.style.display='none'}else if(img){img.hidden=true;if(ph)ph.style.display='grid'}if(st)st.innerHTML=`${esc(status)}${pending?'<br><span class="photo-pending-badge">Menunggu sinkronisasi</span>':''}`}
+function setActions(hasCloudPhoto){const a=$('photoActions'),u=user();if(!a)return;const coordinator=u?.role==='coordinator';if(hasCloudPhoto&&!coordinator){a.innerHTML='<span style="font-size:11px;color:#64748b">Foto sudah tersimpan. Penggantian hanya oleh Koordinator.</span>';return}const take=$('takePhotoBtn'),gal=$('galleryPhotoBtn');if(take)take.textContent=hasCloudPhoto?'📷 Ganti Foto':'📷 Kamera';if(gal)gal.textContent=hasCloudPhoto?'🖼 Ganti dari Galeri':'🖼 Galeri'}
+async function loadCurrentPhoto(p){let pend=null;try{pend=await pendingGet(p.id)}catch{}if(pend){showPhoto(pend.dataUrl,'Foto sudah diambil di HP.',true);setActions(false)}if(!navigator.onLine){if(!pend)showPhoto(null,'Belum dapat memeriksa foto server karena HP offline.');return}const c=cloud();if(!c?.getPhoto)return;try{const photo=await c.getPhoto(p.id);if(photo?.url){if(!pend)showPhoto(photo.url,`Tersimpan${photo.updated_by?' • oleh '+photo.updated_by:''}`);setActions(true)}else if(!pend){showPhoto(null,'Belum ada foto. Silakan ambil foto atau pilih dari galeri.');setActions(false)}}catch(e){if(!pend)showPhoto(null,e.message||'Foto belum dapat dimuat.')}}
+async function handleFile(file,p){if(!file)return;if(!/^image\//.test(file.type||''))return toast('File harus berupa gambar.');try{toast('Memproses foto...');const r=await compress(file);showPhoto(r.dataUrl,'Foto siap disimpan.',!navigator.onLine);const item={participant_id:p.id,dataUrl:r.dataUrl,mime:r.mime,updated_at:new Date().toISOString()};await pendingPut(item);if(navigator.onLine)await uploadPending(item,true);else toast('Foto disimpan di HP. Akan dikirim saat internet tersedia.')}catch(e){toast('Foto gagal diproses: '+(e.message||e))}}
+async function uploadPending(item,showMessage=false){const c=cloud();if(!navigator.onLine||!c?.uploadPhoto)return false;try{const photo=await c.uploadPhoto(item.participant_id,item.dataUrl,item.mime);await pendingDelete(item.participant_id);if(participant()?.id===item.participant_id){showPhoto(photo?.url||item.dataUrl,`Foto tersimpan${photo?.updated_by?' • oleh '+photo.updated_by:''}`);setActions(true)}if(showMessage)toast('Foto berhasil disimpan.');return true}catch(e){const msg=String(e?.message||e);if(/Foto sudah ada|Penggantian foto hanya/i.test(msg)){await pendingDelete(item.participant_id);if(participant()?.id===item.participant_id)loadCurrentPhoto(participant())}if(showMessage)toast('Foto belum terkirim: '+msg);return false}}
+async function flushPending(){if(!navigator.onLine||!cloud()?.uploadPhoto)return;let rows=[];try{rows=await pendingAll()}catch{return}for(const x of rows)await uploadPending(x,false)}
+async function enhance(){if(enhancing)return;const card=$('participantCard'),p=participant();if(!card||!p||card.classList.contains('empty'))return;if(card.querySelector(`[data-photo-panel="${p.id}"]`))return;enhancing=true;try{card.querySelectorAll('[data-photo-panel]').forEach(x=>x.remove());const row=card.querySelector('.row');if(row)row.insertAdjacentHTML('afterend',panelHtml(p));else card.insertAdjacentHTML('afterbegin',panelHtml(p));const ci=$('photoCameraInput'),gi=$('photoGalleryInput'),tb=$('takePhotoBtn'),gb=$('galleryPhotoBtn');if(tb&&ci)tb.onclick=()=>ci.click();if(gb&&gi)gb.onclick=()=>gi.click();if(ci)ci.onchange=()=>{const f=ci.files?.[0];ci.value='';handleFile(f,p)};if(gi)gi.onchange=()=>{const f=gi.files?.[0];gi.value='';handleFile(f,p)};await loadCurrentPhoto(p)}finally{enhancing=false}}
+function init(){injectCss();const card=$('participantCard');if(card)new MutationObserver(()=>setTimeout(enhance,0)).observe(card,{childList:true,subtree:true});$('findBtn')?.addEventListener('click',()=>setTimeout(enhance,30));$('participantNo')?.addEventListener('keydown',e=>{if(e.key==='Enter')setTimeout(enhance,30)});window.addEventListener('online',()=>setTimeout(async()=>{await flushPending();enhance()},900));window.addEventListener('mpk-cloud-ready',()=>{flushPending();enhance()});setTimeout(()=>{flushPending();enhance()},1200);setInterval(flushPending,45000);window.MPK_PHOTO={enhance,flushPending}}
 document.addEventListener('DOMContentLoaded',init);
 })();
