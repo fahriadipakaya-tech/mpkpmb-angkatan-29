@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -31,6 +31,9 @@ jobs:
 
       - name: Install Android SDK components
         run: yes | sdkmanager --licenses >/dev/null || true
+
+      - name: Install image tooling
+        run: python3 -m pip install --quiet pillow
 
       - name: Prepare Android adaptive launcher icon
         run: |
@@ -51,14 +54,12 @@ jobs:
           raw_path.write_bytes(raw)
           logo = Image.open(raw_path).convert('RGBA')
 
-          # Adaptive foreground: transparent 432x432 canvas, logo centered in Android safe zone.
           fg = Image.new('RGBA', (432, 432), (0, 0, 0, 0))
           mark = logo.copy()
           mark.thumbnail((260, 260), Image.Resampling.LANCZOS)
           fg.alpha_composite(mark, ((432-mark.width)//2, (432-mark.height)//2))
           fg.save(raw_dir / 'ic_launcher_foreground.png', 'PNG')
 
-          # Legacy launcher icons for Android versions/launchers that do not use adaptive icons.
           densities = {
               'mipmap-mdpi': 48,
               'mipmap-hdpi': 72,
@@ -77,7 +78,6 @@ jobs:
               canvas.save(d / 'ic_launcher.png', 'PNG')
               canvas.save(d / 'ic_launcher_round.png', 'PNG')
 
-          # Adaptive icon XML (Android 8+). Samsung/One UI will mask this safely.
           anydpi = root / 'mipmap-anydpi-v26'
           anydpi.mkdir(parents=True, exist_ok=True)
           adaptive = '''<?xml version="1.0" encoding="utf-8"?>
@@ -105,22 +105,22 @@ jobs:
       - name: Prepare downloadable APK
         run: |
           mkdir -p downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/MPK-PMB-XXIX-v1.3.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/MPK-PMB-XXIX-v1.4.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MPK-PMB-XXIX-Android-v1.3
-          path: downloads/MPK-PMB-XXIX-v1.3.apk
+          name: MPK-PMB-XXIX-Android-v1.4
+          path: downloads/MPK-PMB-XXIX-v1.4.apk
 
       - name: Publish APK to GitHub Pages repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add downloads/MPK-PMB-XXIX-v1.3.apk
+          git add downloads/MPK-PMB-XXIX-v1.4.apk
           if git diff --cached --quiet; then
             echo "APK unchanged"
           else
-            git commit -m "Publish Android APK v1.3"
+            git commit -m "Publish Android APK v1.4"
             git push
           fi
