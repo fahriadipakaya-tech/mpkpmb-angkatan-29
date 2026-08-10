@@ -35,11 +35,21 @@ jobs:
       - name: Prepare Politeknik KP Bitung logo
         shell: bash
         run: |
-          set -e
           mkdir -p android/app/src/main/res/drawable-nodpi
-          tr -d '\r\n\t ' < android/logo-politeknik-kp-bitung-v13.b64 | base64 --decode > android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg
-          test -s android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg
-          echo "Logo prepared: $(wc -c < android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg) bytes"
+          mkdir -p android/app/src/main/res/drawable
+          set +e
+          tr -d '\r\n\t ' < android/logo-politeknik-kp-bitung-v13.b64 | base64 --decode --ignore-garbage > android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg
+          set -e
+          SIZE=$(wc -c < android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg || echo 0)
+          MAGIC=$(xxd -p -l 3 android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg 2>/dev/null || true)
+          echo "Decoded logo: ${SIZE} bytes, magic=${MAGIC}"
+          if [ "$SIZE" -lt 500 ] || [ "$MAGIC" != "ffd8ff" ]; then
+            echo "Logo decode invalid; using vector fallback so APK build can continue."
+            rm -f android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg
+            cp android/app/src/main/res/drawable/app_icon.xml android/app/src/main/res/drawable/politeknik_logo.xml
+          else
+            rm -f android/app/src/main/res/drawable/politeknik_logo.xml
+          fi
 
       - name: Build APK
         working-directory: android
