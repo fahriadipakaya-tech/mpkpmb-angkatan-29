@@ -7,23 +7,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>MPK-PMB XXIX</title>
-  <link rel="manifest" href="manifest.webmanifest?v=20260810simple" />
+  <link rel="manifest" href="manifest.webmanifest?v=20260810nameonly" />
   <link rel="icon" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=20260810simple" />
+  <link rel="stylesheet" href="styles.css?v=20260810nameonly" />
   <style>
     .talent-top-link{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#eaf2f1;color:#0b5d56;text-decoration:none;font-weight:900;font-size:19px}
     .talent-banner{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#eef8f6;border:1px solid #c6e5e0;border-radius:16px;padding:13px 14px;margin-bottom:14px}
     .talent-banner strong{display:block;color:#0b5d56}.talent-banner small{color:#64748b}.talent-banner a{background:#0b5d56;color:#fff;text-decoration:none;padding:10px 12px;border-radius:11px;font-weight:800;white-space:nowrap}
     .simple-login-notice{background:#eef8f6;border:1px solid #c6e5e0;color:#285a55;border-radius:14px;padding:12px 13px;font-size:12px;line-height:1.45;margin:14px 0 16px}
-    #simpleName{font-size:17px;font-weight:800;height:52px;margin-bottom:14px}
-    .pin-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}.pin-title small{color:#64748b;font-weight:600}
-    .pin-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0 12px}
-    .pin-btn{border:2px solid #d9e5e3;background:#fff;color:#0b5d56;border-radius:14px;min-height:54px;font-size:22px;font-weight:900;cursor:pointer;touch-action:manipulation}
-    .pin-btn.selected{background:#0b5d56;color:#fff;border-color:#0b5d56;box-shadow:0 5px 14px #0b5d5630}
+    #simpleName{font-size:17px;font-weight:800;height:54px;margin-bottom:14px}
     .pin-status{min-height:20px;text-align:center;font-size:12px;color:#64748b;margin-bottom:8px}.pin-status.ready{color:#0b5d56;font-weight:800}.pin-status.error{color:#b91c1c;font-weight:800}
     #simpleLoginBtn:disabled{opacity:.5;cursor:not-allowed}
     .login-help{text-align:center;color:#64748b;font-size:11px;line-height:1.4;margin-top:12px}
-    @media(max-width:600px){.talent-banner{align-items:flex-start;flex-direction:column}.talent-banner a{width:100%;text-align:center}.pin-grid{gap:6px}.pin-btn{min-height:50px;font-size:20px}}
+    @media(max-width:600px){.talent-banner{align-items:flex-start;flex-direction:column}.talent-banner a{width:100%;text-align:center}}
   </style>
 </head>
 <body>
@@ -36,7 +32,7 @@
       <p>Politeknik Kelautan dan Perikanan Bitung</p>
 
       <div id="simpleLogin">
-        <div class="simple-login-notice"><strong>Login Penilai</strong><br>Pilih nama Anda, lalu tekan PIN angka. Tidak perlu mendaftar akun atau menggunakan email.</div>
+        <div class="simple-login-notice"><strong>Login Penilai</strong><br>Pilih nama Anda lalu tekan MASUK. Tidak perlu password, PIN, email, atau pendaftaran akun.</div>
         <label for="simpleName">Nama Penilai</label>
         <select id="simpleName">
           <option value="">— Pilih nama —</option>
@@ -48,17 +44,7 @@
           <option value="Kholid">Kholid</option>
           <option value="Reinhard">Reinhard</option>
         </select>
-
-        <div class="pin-title"><label>PIN</label><small>tekan 1 angka</small></div>
-        <div id="pinPad" class="pin-grid">
-          <button type="button" class="pin-btn" data-pin="1">1</button>
-          <button type="button" class="pin-btn" data-pin="2">2</button>
-          <button type="button" class="pin-btn" data-pin="3">3</button>
-          <button type="button" class="pin-btn" data-pin="4">4</button>
-          <button type="button" class="pin-btn" data-pin="5">5</button>
-        </div>
-        <input id="simplePin" type="hidden" value="" />
-        <div id="pinStatus" class="pin-status">Pilih nama dan PIN.</div>
+        <div id="pinStatus" class="pin-status">Pilih nama Anda.</div>
         <button id="simpleLoginBtn" class="primary big" disabled>MASUK</button>
         <div class="login-help">Login pertama membutuhkan koneksi internet. Setelah berhasil masuk, penilaian tetap dapat disimpan saat sinyal terputus dan akan disinkron otomatis ketika internet tersedia.</div>
       </div>
@@ -155,10 +141,10 @@
       caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('mpkpmb-')).map(k => caches.delete(k)))).catch(()=>{});
     }
   </script>
-  <script src="config.js?v=20260810simple"></script>
-  <script src="roster.js?v=20260810simple"></script>
-  <script src="data.js?v=20260810simple"></script>
-  <script src="app.js?v=20260810simple"></script>
-  <script src="cloud.js?v=20260810simple"></script>
+  <script src="config.js?v=20260810nameonly"></script>
+  <script src="roster.js?v=20260810nameonly"></script>
+  <script src="data.js?v=20260810nameonly"></script>
+  <script src="app.js?v=20260810nameonly"></script>
+  <script src="cloud.js?v=20260810nameonly"></script>
 </body>
 </html>
