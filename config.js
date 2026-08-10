@@ -16,4 +16,11 @@ window.addEventListener('load', () => {
     s.defer = true;
     document.body.appendChild(s);
   }
+  if (!document.querySelector('script[data-mpk-access]')) {
+    const a = document.createElement('script');
+    a.src = './access-control.js?v=20260810-1907';
+    a.dataset.mpkAccess = '1';
+    a.defer = true;
+    document.body.appendChild(a);
+  }
 });
