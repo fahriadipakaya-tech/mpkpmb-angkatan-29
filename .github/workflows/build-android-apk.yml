@@ -43,7 +43,7 @@ jobs:
           from PIL import Image
 
           root = Path('android/app/src/main/res')
-          src = Path('android/logo-politeknik-kp-bitung.b64')
+          src = Path('android/logo-politeknik-kp-bitung-v13.b64')
           text = re.sub(r'[^A-Za-z0-9+/=]', '', src.read_text(encoding='utf-8'))
           text += '=' * ((4 - len(text) % 4) % 4)
           raw = base64.b64decode(text, validate=False)
