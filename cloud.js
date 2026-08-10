@@ -21,9 +21,6 @@ async function api(payload){
 function setupSimpleLogin(){
   const name=$('simpleName'),btn=$('simpleLoginBtn');
   if(!name||!btn)return;
-  const pinTitle=document.querySelector('.pin-title');if(pinTitle)pinTitle.style.display='none';
-  const pinPad=$('pinPad');if(pinPad)pinPad.style.display='none';
-  const pin=$('simplePin');if(pin)pin.style.display='none';
   const notice=document.querySelector('.simple-login-notice');if(notice)notice.innerHTML='<strong>Login Penilai</strong><br>Pilih nama Anda lalu tekan MASUK. Tidak perlu password, PIN, email, atau pendaftaran akun.';
   const refresh=()=>{btn.disabled=!name.value;setLoginStatus(name.value?'Siap masuk.':'Pilih nama Anda.',name.value?'ready':'')};
   name.addEventListener('change',refresh);
@@ -74,6 +71,22 @@ async function sync(show=true){
   }catch(e){if(show)notify('Sinkron gagal: '+(e.message||e))}
 }
 
+async function getPhoto(participantId){
+  const cred=getCred();
+  if(!cred)throw new Error('Silakan login kembali.');
+  if(!navigator.onLine)throw new Error('Foto online belum dapat dimuat saat offline.');
+  const r=await api({action:'get_photo',name:cred.name,participant_id:Number(participantId)});
+  return r.photo||null;
+}
+
+async function uploadPhoto(participantId,dataUrl,mime='image/jpeg'){
+  const cred=getCred();
+  if(!cred)throw new Error('Silakan login kembali.');
+  if(!navigator.onLine)throw new Error('Tidak ada internet. Foto disimpan sementara di HP.');
+  const r=await api({action:'upload_photo',name:cred.name,participant_id:Number(participantId),photo_base64:dataUrl,mime});
+  return r.photo||null;
+}
+
 function forceSimpleLoginForLegacyUsers(){
   const u=readJSON(USER),cred=getCred();
   if(u&&(!u.field||!cred)){
@@ -101,7 +114,8 @@ function init(){
   window.addEventListener('online',()=>setTimeout(()=>sync(false),700));
   const u=readJSON(USER);if(u?.field&&getCred())setTimeout(()=>sync(false),800);
   setInterval(()=>{if(readJSON(USER)?.field)sync(false)},Math.max(30,Number(CFG.AUTO_SYNC_SECONDS)||30)*1000);
-  window.MPK_CLOUD={sync};
+  window.MPK_CLOUD={sync,getPhoto,uploadPhoto,api,getCred};
+  window.dispatchEvent(new Event('mpk-cloud-ready'));
 }
 document.addEventListener('DOMContentLoaded',init);
 })();
