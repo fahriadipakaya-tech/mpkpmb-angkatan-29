@@ -1,30 +1,108 @@
 (()=>{'use strict';
 const CFG=window.MPK_CONFIG;
-if(!CFG?.SUPABASE_URL||!CFG?.SUPABASE_PUBLISHABLE_KEY||!window.supabase)return;
-const sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_PUBLISHABLE_KEY);
-const LS='mpkpmb29_assessments',USER='mpkpmb29_user';
+if(!CFG?.SUPABASE_URL||!CFG?.SUPABASE_PUBLISHABLE_KEY)return;
+const LS='mpkpmb29_assessments',USER='mpkpmb29_user',CRED='mpkpmb29_field_credential';
+const FUNCTION_URL=`${CFG.SUPABASE_URL.replace(/\/$/,'')}/functions/v1/mpk-field`;
 const $=id=>document.getElementById(id);
 const readLocal=()=>{try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch{return[]}};
 const writeLocal=a=>localStorage.setItem(LS,JSON.stringify(a));
-const APP_URL=()=>{const u=new URL(window.location.href);u.hash='';u.search='';return u.href.endsWith('/')?u.href:u.href+'/'};
-function notify(msg){const e=$('toast');if(e){e.textContent=msg;e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),3200)}else alert(msg)}
-async function getProfile(user){const {data,error}=await sb.from('profiles').select('full_name,role').eq('user_id',user.id).single();if(error)throw error;return data}
-async function applySession(session,reload=true){if(!session?.user)return null;const p=await getProfile(session.user);localStorage.setItem(USER,JSON.stringify({name:p.full_name||session.user.email,role:p.role,email:session.user.email,cloud:true}));if(reload)location.reload();return p}
-async function signIn(){const email=$('emailInput').value.trim(),password=$('passwordInput').value;if(!email||!password)return notify('Isi email dan password.');$('cloudLoginBtn').disabled=true;try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;await applySession(data.session)}catch(e){notify('Login gagal: '+(e.message||e))}finally{$('cloudLoginBtn').disabled=false}}
-async function signUp(){const email=$('emailInput').value.trim(),password=$('passwordInput').value,name=$('cloudName')?.value.trim();if(!name||!email||password.length<6)return notify('Isi nama, email, dan password minimal 6 karakter.');$('cloudSignupBtn').disabled=true;try{const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:APP_URL()}});if(error)throw error;if(data.session){await applySession(data.session)}else notify('Akun dibuat. Periksa email untuk konfirmasi, lalu kembali ke aplikasi.')}catch(e){notify('Pendaftaran gagal: '+(e.message||e))}finally{$('cloudSignupBtn').disabled=false}}
-async function resendConfirmation(){const email=$('emailInput').value.trim();if(!email)return notify('Isi email terlebih dahulu.');const btn=$('cloudResendBtn');if(btn)btn.disabled=true;try{const {error}=await sb.auth.resend({type:'signup',email,options:{emailRedirectTo:APP_URL()}});if(error)throw error;notify('Email konfirmasi baru sudah dikirim. Gunakan email yang paling baru.')}catch(e){notify('Gagal kirim ulang: '+(e.message||e))}finally{if(btn)btn.disabled=false}}
-function toCloud(x,user,name){return{client_id:String(x.id),participant_id:x.participant_id,category:x.category,activity:x.activity,scores:x.scores||{},final_score:x.final_score,discipline_status:x.discipline_status||null,notes:x.notes||'',assessor_id:user.id,assessor_name:x.assessor_name||name,created_at:x.created_at}}
-async function pushPending(user,profile){const local=readLocal(),pending=local.filter(x=>!x.synced);if(!pending.length)return 0;const rows=pending.map(x=>toCloud(x,user,profile.full_name||user.email));const {data,error}=await sb.from('assessments').upsert(rows,{onConflict:'client_id'}).select('client_id');if(error)throw error;const done=new Set((data||[]).map(x=>String(x.client_id)));local.forEach(x=>{if(done.has(String(x.id)))x.synced=true});writeLocal(local);return done.size}
-async function pullCloud(){const {data,error}=await sb.from('assessments').select('*').order('created_at',{ascending:false}).limit(5000);if(error)throw error;const local=readLocal(),byId=new Map(local.map(x=>[String(x.id),x]));for(const r of data||[]){const id=String(r.client_id||r.id),p=(window.MPK_ROSTER||[]).find(x=>x.id===r.participant_id);byId.set(id,{id,participant_id:r.participant_id,code:p?.code||String(r.participant_id).padStart(2,'0'),name:p?.name||'Peserta',program:p?.program||'',category:r.category,activity:r.activity,scores:r.scores||{},final_score:r.final_score==null?null:Number(r.final_score),discipline_status:r.discipline_status,notes:r.notes||'',assessor_name:r.assessor_name,created_at:r.created_at,synced:true})}writeLocal([...byId.values()]);return (data||[]).length}
-async function sync(show=true){if(!navigator.onLine){if(show)notify('Tidak ada koneksi internet. Data tetap tersimpan di HP.');return}const {data:{session}}=await sb.auth.getSession();if(!session){if(show)notify('Silakan masuk menggunakan akun Online agar data tersinkron.');return}try{const profile=await getProfile(session.user),pushed=await pushPending(session.user,profile),pulled=await pullCloud();if(show)notify(`Sinkron selesai: ${pushed} dikirim, ${pulled} data cloud dibaca.`)}catch(e){if(show)notify('Sinkron gagal: '+(e.message||e))}}
-async function init(){const cloud=$('cloudLogin');if(cloud){cloud.classList.remove('hidden');const demo=$('demoLogin');if(demo){const n=demo.querySelector('.notice');if(n)n.textContent='Mode Demo hanya untuk keadaan darurat/offline. Untuk penggunaan bersama, gunakan Masuk Online.'}$('cloudLoginBtn').onclick=signIn;$('cloudSignupBtn')?.addEventListener('click',signUp);$('cloudResendBtn')?.addEventListener('click',resendConfirmation)}
-const hash=new URLSearchParams(window.location.hash.replace(/^#/,''));if(hash.get('error')){notify('Konfirmasi gagal: '+(hash.get('error_description')||hash.get('error')));history.replaceState(null,'',window.location.pathname)}
-const {data:{session}}=await sb.auth.getSession();if(session){try{const raw=localStorage.getItem(USER),u=raw?JSON.parse(raw):null;if(!u?.cloud)await applySession(session,false);setTimeout(()=>sync(false),600)}catch{}}
-const logout=$('logoutBtn');if(logout)logout.onclick=async()=>{await sb.auth.signOut();localStorage.removeItem(USER);location.reload()};
-const syncBtn=$('syncBtn'),adminSync=$('adminSyncBtn');if(syncBtn)syncBtn.onclick=()=>sync(true);if(adminSync)adminSync.onclick=()=>sync(true);
-document.addEventListener('click',e=>{if(e.target?.id==='saveAssessmentBtn')setTimeout(()=>sync(false),500)},true);
-setInterval(()=>sync(false),Math.max(30,Number(CFG.AUTO_SYNC_SECONDS)||60)*1000);
-window.MPK_CLOUD={sync,client:sb,resendConfirmation};
+const readJSON=(k)=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}};
+function notify(msg){const e=$('toast');if(e){e.textContent=msg;e.classList.remove('hidden');clearTimeout(notify.t);notify.t=setTimeout(()=>e.classList.add('hidden'),3200)}else alert(msg)}
+function setLoginStatus(msg,kind=''){const e=$('pinStatus');if(!e)return;e.textContent=msg;e.className=`pin-status${kind?' '+kind:''}`}
+function getCred(){const c=readJSON(CRED);return c?.name&&c?.pin?c:null}
+
+async function api(payload){
+  const r=await fetch(FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify(payload)});
+  let out={};try{out=await r.json()}catch{}
+  if(!r.ok||!out.ok)throw new Error(out.error||`Server ${r.status}`);
+  return out;
+}
+
+function setupPinPad(){
+  const name=$('simpleName'),pin=$('simplePin'),btn=$('simpleLoginBtn');
+  if(!name||!pin||!btn)return;
+  const refresh=()=>{btn.disabled=!(name.value&&pin.value);setLoginStatus(name.value&&pin.value?'Siap masuk.':'Pilih nama dan PIN.',name.value&&pin.value?'ready':'')};
+  name.addEventListener('change',refresh);
+  document.querySelectorAll('.pin-btn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.pin-btn').forEach(x=>x.classList.remove('selected'));
+    b.classList.add('selected');pin.value=b.dataset.pin||'';refresh();
+  }));
+  btn.addEventListener('click',simpleLogin);
+}
+
+async function simpleLogin(){
+  const name=$('simpleName')?.value||'',pin=$('simplePin')?.value||'',btn=$('simpleLoginBtn');
+  if(!name||!pin)return setLoginStatus('Pilih nama dan PIN.','error');
+  if(!navigator.onLine)return setLoginStatus('Login pertama membutuhkan koneksi internet.','error');
+  if(btn)btn.disabled=true;setLoginStatus('Memeriksa...','ready');
+  try{
+    const r=await api({action:'login',name,pin});
+    localStorage.setItem(CRED,JSON.stringify({name:r.name,pin,role:r.role}));
+    localStorage.setItem(USER,JSON.stringify({name:r.name,role:r.role,field:true}));
+    setLoginStatus('Login berhasil. Membuka aplikasi...','ready');
+    location.reload();
+  }catch(e){
+    document.querySelectorAll('.pin-btn').forEach(x=>x.classList.remove('selected'));
+    if($('simplePin'))$('simplePin').value='';
+    setLoginStatus(e.message||'Nama atau PIN salah.','error');
+    if(btn)btn.disabled=true;
+  }
+}
+
+function rowFromCloud(r){
+  const p=(window.MPK_ROSTER||[]).find(x=>x.id===r.participant_id);
+  return {id:String(r.client_id||r.id),participant_id:r.participant_id,code:p?.code||String(r.participant_id).padStart(2,'0'),name:p?.name||'Peserta',program:p?.program||'',category:r.category,activity:r.activity,scores:r.scores||{},final_score:r.final_score==null?null:Number(r.final_score),discipline_status:r.discipline_status,notes:r.notes||'',assessor_name:r.assessor_name||'Penilai',created_at:r.created_at,synced:true};
+}
+
+function mergeCloud(rows,syncedIds=[]){
+  const local=readLocal(),done=new Set((syncedIds||[]).map(String));
+  local.forEach(x=>{if(done.has(String(x.id)))x.synced=true});
+  const byId=new Map(local.map(x=>[String(x.id),x]));
+  for(const r of rows||[]){const x=rowFromCloud(r);byId.set(String(x.id),x)}
+  writeLocal([...byId.values()]);
+}
+
+async function sync(show=true){
+  const cred=getCred();
+  if(!cred){if(show)notify('Silakan login kembali.');return}
+  if(!navigator.onLine){if(show)notify('Tidak ada internet. Nilai tetap aman di HP dan akan disinkron saat online.');return}
+  try{
+    const pending=readLocal().filter(x=>!x.synced).slice(0,500);
+    const r=await api({action:'sync',name:cred.name,pin:cred.pin,pending});
+    mergeCloud(r.assessments||[],r.synced_ids||[]);
+    if(show)notify(`Sinkron selesai • ${r.synced_ids?.length||0} data dikirim.`);
+    window.dispatchEvent(new Event('mpk-cloud-updated'));
+  }catch(e){if(show)notify('Sinkron gagal: '+(e.message||e))}
+}
+
+function forceSimpleLoginForLegacyUsers(){
+  const u=readJSON(USER),cred=getCred();
+  if(u&&(!u.field||!cred)){
+    localStorage.removeItem(USER);
+    localStorage.removeItem(CRED);
+    location.reload();
+    return true;
+  }
+  return false;
+}
+
+function logout(){
+  localStorage.removeItem(USER);
+  localStorage.removeItem(CRED);
+  location.reload();
+}
+
+function init(){
+  if(forceSimpleLoginForLegacyUsers())return;
+  setupPinPad();
+  const logoutBtn=$('logoutBtn');if(logoutBtn)logoutBtn.onclick=logout;
+  const syncBtn=$('syncBtn'),adminSync=$('adminSyncBtn');if(syncBtn)syncBtn.onclick=()=>sync(true);if(adminSync)adminSync.onclick=()=>sync(true);
+  const seed=$('seedBtn');if(seed)seed.classList.add('hidden');
+  document.addEventListener('click',e=>{if(e.target?.id==='saveAssessmentBtn')setTimeout(()=>sync(false),550)},true);
+  window.addEventListener('online',()=>setTimeout(()=>sync(false),700));
+  const u=readJSON(USER);if(u?.field&&getCred())setTimeout(()=>sync(false),800);
+  setInterval(()=>{if(readJSON(USER)?.field)sync(false)},Math.max(30,Number(CFG.AUTO_SYNC_SECONDS)||30)*1000);
+  window.MPK_CLOUD={sync};
 }
 document.addEventListener('DOMContentLoaded',init);
 })();
