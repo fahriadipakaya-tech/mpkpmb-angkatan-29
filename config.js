@@ -9,10 +9,18 @@ window.MPK_CONFIG = {
 };
 
 window.addEventListener('load', () => {
-  if (document.querySelector('script[data-mpk-enhancements]')) return;
-  const s = document.createElement('script');
-  s.src = './enhancements.js?v=20260807-2126';
-  s.dataset.mpkEnhancements = '1';
-  s.defer = true;
-  document.body.appendChild(s);
+  if (!document.querySelector('script[data-mpk-enhancements]')) {
+    const s = document.createElement('script');
+    s.src = './enhancements.js?v=20260807-2126';
+    s.dataset.mpkEnhancements = '1';
+    s.defer = true;
+    document.body.appendChild(s);
+  }
+  if (!document.querySelector('script[data-mpk-photo]')) {
+    const p = document.createElement('script');
+    p.src = './photo.js?v=20260810photo1';
+    p.dataset.mpkPhoto = '1';
+    p.defer = true;
+    document.body.appendChild(p);
+  }
 });
