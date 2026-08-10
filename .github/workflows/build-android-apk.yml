@@ -32,70 +32,21 @@ jobs:
       - name: Install Android SDK components
         run: yes | sdkmanager --licenses >/dev/null || true
 
-      - name: Install image tooling
-        run: python3 -m pip install --quiet pillow
-
-      - name: Prepare Android adaptive launcher icon
+      - name: Prepare Politeknik KP Bitung logo
         run: |
           python3 - <<'PY'
           import base64, re
           from pathlib import Path
-          from PIL import Image
-
-          root = Path('android/app/src/main/res')
           src = Path('android/logo-politeknik-kp-bitung-v13.b64')
           text = re.sub(r'[^A-Za-z0-9+/=]', '', src.read_text(encoding='utf-8'))
           text += '=' * ((4 - len(text) % 4) % 4)
           raw = base64.b64decode(text, validate=False)
-
-          raw_dir = root / 'drawable-nodpi'
-          raw_dir.mkdir(parents=True, exist_ok=True)
-          raw_path = raw_dir / 'politeknik_logo.jpg'
-          raw_path.write_bytes(raw)
-          logo = Image.open(raw_path).convert('RGBA')
-
-          fg = Image.new('RGBA', (432, 432), (0, 0, 0, 0))
-          mark = logo.copy()
-          mark.thumbnail((260, 260), Image.Resampling.LANCZOS)
-          fg.alpha_composite(mark, ((432-mark.width)//2, (432-mark.height)//2))
-          fg.save(raw_dir / 'ic_launcher_foreground.png', 'PNG')
-
-          densities = {
-              'mipmap-mdpi': 48,
-              'mipmap-hdpi': 72,
-              'mipmap-xhdpi': 96,
-              'mipmap-xxhdpi': 144,
-              'mipmap-xxxhdpi': 192,
-          }
-          for folder, size in densities.items():
-              d = root / folder
-              d.mkdir(parents=True, exist_ok=True)
-              canvas = Image.new('RGBA', (size, size), (255, 255, 255, 255))
-              icon = logo.copy()
-              target = int(size * 0.82)
-              icon.thumbnail((target, target), Image.Resampling.LANCZOS)
-              canvas.alpha_composite(icon, ((size-icon.width)//2, (size-icon.height)//2))
-              canvas.save(d / 'ic_launcher.png', 'PNG')
-              canvas.save(d / 'ic_launcher_round.png', 'PNG')
-
-          anydpi = root / 'mipmap-anydpi-v26'
-          anydpi.mkdir(parents=True, exist_ok=True)
-          adaptive = '''<?xml version="1.0" encoding="utf-8"?>
-          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-              <background android:drawable="@color/ic_launcher_background" />
-              <foreground android:drawable="@drawable/ic_launcher_foreground" />
-          </adaptive-icon>\n'''
-          (anydpi / 'ic_launcher.xml').write_text(adaptive, encoding='utf-8')
-          (anydpi / 'ic_launcher_round.xml').write_text(adaptive, encoding='utf-8')
-
-          values = root / 'values'
-          values.mkdir(parents=True, exist_ok=True)
-          (values / 'launcher_colors.xml').write_text('''<?xml version="1.0" encoding="utf-8"?>
-          <resources><color name="ic_launcher_background">#FFFFFF</color></resources>\n''', encoding='utf-8')
-
-          print('Logo source:', logo.size)
-          print('Adaptive foreground:', mark.size)
-          print('Launcher resources generated successfully')
+          if not raw.startswith(b'\xff\xd8\xff'):
+              raise SystemExit('Logo JPEG tidak valid')
+          out = Path('android/app/src/main/res/drawable-nodpi/politeknik_logo.jpg')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_bytes(raw)
+          print('Logo prepared:', len(raw), 'bytes')
           PY
 
       - name: Build APK
