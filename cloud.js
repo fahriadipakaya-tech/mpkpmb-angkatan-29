@@ -6,10 +6,10 @@ const FUNCTION_URL=`${CFG.SUPABASE_URL.replace(/\/$/,'')}/functions/v1/mpk-field
 const $=id=>document.getElementById(id);
 const readLocal=()=>{try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch{return[]}};
 const writeLocal=a=>localStorage.setItem(LS,JSON.stringify(a));
-const readJSON=(k)=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}};
+const readJSON=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}};
 function notify(msg){const e=$('toast');if(e){e.textContent=msg;e.classList.remove('hidden');clearTimeout(notify.t);notify.t=setTimeout(()=>e.classList.add('hidden'),3200)}else alert(msg)}
 function setLoginStatus(msg,kind=''){const e=$('pinStatus');if(!e)return;e.textContent=msg;e.className=`pin-status${kind?' '+kind:''}`}
-function getCred(){const c=readJSON(CRED);return c?.name&&c?.pin?c:null}
+function getCred(){const c=readJSON(CRED);return c?.name?c:null}
 
 async function api(payload){
   const r=await fetch(FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify(payload)});
@@ -18,34 +18,33 @@ async function api(payload){
   return out;
 }
 
-function setupPinPad(){
-  const name=$('simpleName'),pin=$('simplePin'),btn=$('simpleLoginBtn');
-  if(!name||!pin||!btn)return;
-  const refresh=()=>{btn.disabled=!(name.value&&pin.value);setLoginStatus(name.value&&pin.value?'Siap masuk.':'Pilih nama dan PIN.',name.value&&pin.value?'ready':'')};
+function setupSimpleLogin(){
+  const name=$('simpleName'),btn=$('simpleLoginBtn');
+  if(!name||!btn)return;
+  const pinTitle=document.querySelector('.pin-title');if(pinTitle)pinTitle.style.display='none';
+  const pinPad=$('pinPad');if(pinPad)pinPad.style.display='none';
+  const pin=$('simplePin');if(pin)pin.style.display='none';
+  const notice=document.querySelector('.simple-login-notice');if(notice)notice.innerHTML='<strong>Login Penilai</strong><br>Pilih nama Anda lalu tekan MASUK. Tidak perlu password, PIN, email, atau pendaftaran akun.';
+  const refresh=()=>{btn.disabled=!name.value;setLoginStatus(name.value?'Siap masuk.':'Pilih nama Anda.',name.value?'ready':'')};
   name.addEventListener('change',refresh);
-  document.querySelectorAll('.pin-btn').forEach(b=>b.addEventListener('click',()=>{
-    document.querySelectorAll('.pin-btn').forEach(x=>x.classList.remove('selected'));
-    b.classList.add('selected');pin.value=b.dataset.pin||'';refresh();
-  }));
   btn.addEventListener('click',simpleLogin);
+  refresh();
 }
 
 async function simpleLogin(){
-  const name=$('simpleName')?.value||'',pin=$('simplePin')?.value||'',btn=$('simpleLoginBtn');
-  if(!name||!pin)return setLoginStatus('Pilih nama dan PIN.','error');
+  const name=$('simpleName')?.value||'',btn=$('simpleLoginBtn');
+  if(!name)return setLoginStatus('Pilih nama Anda.','error');
   if(!navigator.onLine)return setLoginStatus('Login pertama membutuhkan koneksi internet.','error');
-  if(btn)btn.disabled=true;setLoginStatus('Memeriksa...','ready');
+  if(btn)btn.disabled=true;setLoginStatus('Memeriksa nama...','ready');
   try{
-    const r=await api({action:'login',name,pin});
-    localStorage.setItem(CRED,JSON.stringify({name:r.name,pin,role:r.role}));
+    const r=await api({action:'login',name});
+    localStorage.setItem(CRED,JSON.stringify({name:r.name,role:r.role}));
     localStorage.setItem(USER,JSON.stringify({name:r.name,role:r.role,field:true}));
     setLoginStatus('Login berhasil. Membuka aplikasi...','ready');
     location.reload();
   }catch(e){
-    document.querySelectorAll('.pin-btn').forEach(x=>x.classList.remove('selected'));
-    if($('simplePin'))$('simplePin').value='';
-    setLoginStatus(e.message||'Nama atau PIN salah.','error');
-    if(btn)btn.disabled=true;
+    setLoginStatus(e.message||'Nama penilai tidak terdaftar.','error');
+    if(btn)btn.disabled=false;
   }
 }
 
@@ -68,7 +67,7 @@ async function sync(show=true){
   if(!navigator.onLine){if(show)notify('Tidak ada internet. Nilai tetap aman di HP dan akan disinkron saat online.');return}
   try{
     const pending=readLocal().filter(x=>!x.synced).slice(0,500);
-    const r=await api({action:'sync',name:cred.name,pin:cred.pin,pending});
+    const r=await api({action:'sync',name:cred.name,pending});
     mergeCloud(r.assessments||[],r.synced_ids||[]);
     if(show)notify(`Sinkron selesai • ${r.synced_ids?.length||0} data dikirim.`);
     window.dispatchEvent(new Event('mpk-cloud-updated'));
@@ -94,7 +93,7 @@ function logout(){
 
 function init(){
   if(forceSimpleLoginForLegacyUsers())return;
-  setupPinPad();
+  setupSimpleLogin();
   const logoutBtn=$('logoutBtn');if(logoutBtn)logoutBtn.onclick=logout;
   const syncBtn=$('syncBtn'),adminSync=$('adminSyncBtn');if(syncBtn)syncBtn.onclick=()=>sync(true);if(adminSync)adminSync.onclick=()=>sync(true);
   const seed=$('seedBtn');if(seed)seed.classList.add('hidden');
