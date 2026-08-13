@@ -316,10 +316,10 @@ function currentScheduleId(){
  return x?.id||null;
 }
 function renderMetrics(){
- const schedule=state.home?.schedule||[], logs=state.home?.logs||[];
+ const schedule=(state.home?.schedule||[]).filter(x=>x.managed_by!=='kerohanian'), logs=state.home?.logs||[];
  const done=logs.filter(x=>x.status==='completed').length, started=logs.filter(x=>x.status==='started').length;
  $('metrics').innerHTML=[
-  [done,'Selesai'],[started,'Berlangsung'],[schedule.length,'Kegiatan Hari Ini']
+  [done,'Selesai'],[started,'Berlangsung'],[schedule.length,'Kegiatan Pendamping']
  ].map(x=>`<div class="metric"><strong>${x[0]}</strong><span>${x[1]}</span></div>`).join('');
 }
 
@@ -348,13 +348,14 @@ function renderSchedule(){
  const list=$('scheduleList'), curr=currentScheduleId(), schedule=state.home?.schedule||[];
  if(!schedule.length){list.innerHTML='<div class="empty">Tidak ada jadwal pada tanggal ini.</div>';return}
  list.innerHTML=schedule.map(s=>{
+   const external=s.managed_by==='kerohanian';
    const log=logFor(s.id), st=log?.status||'new';
-   const badge=st==='completed'?['Selesai','b-done']:st==='started'?['Berlangsung','b-start']:['Belum','b-new'];
-   const kind=s.activity_kind==='assessment'?'<span class="badge b-assess">Penilaian</span>':s.activity_kind==='routine'?'<span class="badge b-routine">Rutin</span>':'';
+   const badge=external?['Kerohanian','b-assess']:(st==='completed'?['Selesai','b-done']:st==='started'?['Berlangsung','b-start']:['Belum','b-new']);
+   const kind=external?'<span class="badge b-assess">Dikelola Unit Kerohanian</span>':(s.activity_kind==='assessment'?'<span class="badge b-assess">Penilaian</span>':s.activity_kind==='routine'?'<span class="badge b-routine">Rutin</span>':'');
    return `<div class="activity ${Number(curr)===Number(s.id)?'current':''}">
     <div class="time">${String(s.time_local).slice(0,5)}<br><span style="font-weight:700;color:#809097">${String(s.time_end||'').slice(0,5)}</span></div>
-    <div><div class="aname">${esc(s.activity_name)}</div><div class="meta">${kind} ${log?`• ${esc(log.executor_name)}`:''}</div></div>
-    <div><span class="badge ${badge[1]}">${badge[0]}</span><br><button class="btn small" style="margin-top:5px" onclick="openActivity(${s.id})">${log?'Buka':'Mulai'}</button></div>
+    <div><div class="aname">${esc(s.activity_name)}</div><div class="meta">${kind} ${!external&&log?`• ${esc(log.executor_name)}`:''}</div></div>
+    <div><span class="badge ${badge[1]}">${badge[0]}</span><br>${external?'<button class="btn small" style="margin-top:5px" disabled>Ibadah</button>':`<button class="btn small" style="margin-top:5px" onclick="openActivity(${s.id})">${log?'Buka':'Mulai'}</button>`}</div>
    </div>`
  }).join('');
 }
@@ -369,6 +370,7 @@ function renderParticipants(){
 }
 async function openActivity(scheduleId){
  let s=(state.home.schedule||[]).find(x=>Number(x.id)===Number(scheduleId)); if(!s)return;
+ if(s.managed_by==='kerohanian') return toast('Kegiatan ibadah dikelola melalui aplikasi MPK-PMB Kerohanian.',true);
  let log=logFor(scheduleId);
  if(!log){
    try{
