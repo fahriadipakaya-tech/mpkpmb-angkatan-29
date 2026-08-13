@@ -47,7 +47,7 @@ textarea{min-height:90px;resize:vertical}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .row{display:flex;gap:9px;align-items:center}
 .grow{flex:1}
-.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;position:sticky;top:72px;z-index:25;background:var(--bg);padding:8px 0}
+.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;position:sticky;top:72px;z-index:25;background:var(--bg);padding:8px 0}
 .tab{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 4px;text-align:center;font-size:10.5px;font-weight:850;color:#53666e}
 .tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
 .sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:13px 2px 8px}
@@ -115,6 +115,17 @@ textarea{min-height:90px;resize:vertical}
 .recap-table th{font-size:8.5px;color:var(--muted);text-transform:uppercase}
 .recap-table td.numc,.recap-table th.numc{text-align:center}
 .recap-scroll{overflow:auto}
+
+.inc-hint{background:#eef7f5;border:1px solid #d8e9e5;border-radius:14px;padding:10px 11px;font-size:9.5px;color:#5b716d;line-height:1.55;margin-bottom:10px}
+.inc-list{display:grid;gap:9px}.inc-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:var(--shadow)}
+.inc-head{display:flex;gap:9px;align-items:flex-start}.inc-icon{width:40px;height:40px;border-radius:12px;background:#e8f3f1;display:grid;place-items:center;font-size:17px;flex:0 0 auto}
+.inc-title{font-size:11.5px;font-weight:900;line-height:1.3}.inc-meta{font-size:8.5px;color:var(--muted);line-height:1.45;margin-top:3px}
+.inc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.inc-tag{font-size:7.5px;font-weight:850;padding:4px 6px;border-radius:999px;background:#eef2f1;color:#536965}
+.inc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.inc-grid .full{grid-column:1/-1}.inc-field textarea{min-height:78px;resize:vertical}
+.inc-att{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.inc-att input{text-align:center}.inc-photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.inc-photo{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}.inc-photo img{width:100%;height:120px;object-fit:cover;display:block}.inc-photo .cap{padding:7px;font-size:8px;color:var(--muted)}
+@media(max-width:560px){.inc-grid{grid-template-columns:1fr}.inc-grid .full{grid-column:auto}.inc-att{grid-template-columns:repeat(3,1fr)}}
+
 @media(max-width:560px){.recap-controls{grid-template-columns:1fr 1fr}.recap-controls .btn{grid-column:1/-1}}
 
 .docgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
@@ -176,6 +187,7 @@ textarea{min-height:90px;resize:vertical}
       <button class="tab active" data-tab="today">Hari Ini</button>
       <button class="tab" data-tab="participants">Catar</button>
       <button class="tab" data-tab="history">Riwayat</button>
+      <button class="tab" data-tab="incidental">Insidental</button>
       <button class="tab" data-tab="recap">Rekap</button>
       <button id="monitorTabBtn" class="tab" data-tab="monitor">Monitor</button>
     </nav>
@@ -208,6 +220,13 @@ textarea{min-height:90px;resize:vertical}
     <section id="tab-history" class="hidden">
       <div class="sectionhead"><h2>Riwayat Kegiatan</h2><small>maks. 100 catatan</small></div>
       <div class="card" id="historyList"><div class="empty">Buka tab ini untuk memuat riwayat.</div></div>
+    </section>
+
+    <section id="tab-incidental" class="hidden">
+      <div class="sectionhead"><h2>Kegiatan Insidental</h2><small>di luar jadwal rutin</small></div>
+      <div class="inc-hint">Kegiatan seperti <b>Pembukaan MPK-PMB, pengarahan pimpinan, kunjungan, seminar, apel tambahan, kerja bakti khusus</b>, atau kegiatan strategis lain dilaporkan di sini. Kegiatan insidental <b>tidak dihitung sebagai kewajiban jadwal harian</b>.</div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:9px"><button id="newIncidentalBtn" class="btn primary" onclick="openIncidentalForm()">+ Tambah Kegiatan</button></div>
+      <div id="incidentalList" class="inc-list"><div class="empty">Buka tab ini untuk memuat kegiatan insidental.</div></div>
     </section>
 
     <section id="tab-recap" class="hidden">
@@ -258,6 +277,7 @@ textarea{min-height:90px;resize:vertical}
 <script>
 const API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-companion';
 const RECAP_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-recap';
+const INCIDENTAL_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-incidental';
 
 const MEDIA_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-media';
 async function mediaApi(payload){
@@ -319,7 +339,7 @@ const GROUPS=[
  {start:73,end:80,supervisor:'Alexander Tumewu'}
 ];
 const STATUS_LABEL={present:'Hadir',late:'Terlambat',permit:'Izin',sick:'Sakit',absent:'Tidak Hadir'};
-const state={member:null,home:null,selectedGroup:null,date:null,members:[],monitor:null,recap:null};
+const state={member:null,home:null,selectedGroup:null,date:null,members:[],monitor:null,recap:null,incidental:[]};
 
 function $(id){return document.getElementById(id)}
 function pad(n){return String(n).padStart(2,'0')}
@@ -345,6 +365,18 @@ async function api(action,payload={}){
  if(!res.ok||!data.ok) throw new Error(data.error||`Server merespons ${res.status}`);
  return data;
 }
+
+async function incidentalApi(action,payload={}){
+ const body={action,...payload,name:state.member?.display_name};
+ let res;try{res=await fetch(INCIDENTAL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
+ catch{throw new Error('Tidak dapat terhubung ke server kegiatan insidental.')}
+ let data={};try{data=await res.json()}catch{}
+ if(!res.ok||!data.ok)throw new Error(data.error||`Server kegiatan insidental ${res.status}`);
+ return data
+}
+const INC_TYPE={ceremonial:'Seremonial',coaching:'Pembinaan',academic:'Akademik',visit:'Kunjungan',community_service:'Kerja Bakti/Sosial',other:'Lainnya'};
+function isEmployee(){return state.member?.member_type==='employee_supervisor'}
+function scopeLabel(a){return a.participant_scope==='all'?'Seluruh Catar-Catir':`Kelompok ${pad(a.assignment_start)}–${pad(a.assignment_end)}`}
 function setBusy(btn,on,label){
  if(!btn)return;
  if(on){btn.dataset.old=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>'+label}
@@ -388,6 +420,7 @@ function configureApp(){
    $('topGroup').textContent=`Kelompok ${pad(state.member.assignment_start)}–${pad(state.member.assignment_end)}`;
  }
  $('dateInput').value=state.date;
+ const nb=$('newIncidentalBtn');if(nb)nb.classList.toggle('hidden',!isEmployee());
 }
 async function loadHome(){
  const payload={date:state.date};
@@ -615,6 +648,67 @@ function exportRecapCSV(){
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`rekap-pendamping-${d.range.from}-${d.range.to}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
 }
 
+
+async function loadIncidental(){
+ const box=$('incidentalList');box.innerHTML='<div class="empty">Memuat kegiatan insidental...</div>';
+ try{
+  const d=await incidentalApi('list');state.incidental=d.activities||[];
+  box.innerHTML=state.incidental.length?state.incidental.map(a=>`<div class="inc-card">
+   <div class="inc-head"><div class="inc-icon">★</div><div class="grow"><div class="inc-title">${esc(a.title)}</div><div class="inc-meta">${formatDate(a.activity_date)}${a.time_start?` • ${String(a.time_start).slice(0,5)} WITA`:''}${a.location?` • ${esc(a.location)}`:''}<br>${scopeLabel(a)} • Penanggung jawab: ${esc(a.responsible_person||'-')}</div></div><button class="btn small" onclick="openIncidentalDetail('${a.id}')">Lihat</button></div>
+   <div class="inc-tags"><span class="inc-tag">${esc(INC_TYPE[a.activity_type]||'Lainnya')}</span><span class="inc-tag">Hadir ${a.present_count}/${a.participant_total}</span><span class="inc-tag">📷 ${a.document_count||0}/5</span></div>
+  </div>`).join(''):'<div class="card"><div class="empty">Belum ada kegiatan insidental.</div></div>';
+ }catch(e){box.innerHTML=`<div class="card"><div class="empty">${esc(e.message)}</div></div>`;toast(e.message,true)}
+}
+function openIncidentalForm(){
+ if(!isEmployee())return toast('Kegiatan insidental hanya dapat dibuat Koordinator atau Pendamping Pegawai.',true);
+ const total=state.member.full_access?80:(Number(state.member.assignment_end)-Number(state.member.assignment_start)+1);
+ const groupOpt=state.member.full_access?`<option value="group">Kelompok yang sedang dipantau (${pad(state.selectedGroup)}–${pad(GROUPS.find(g=>g.start===Number(state.selectedGroup))?.end||state.selectedGroup)})</option>`:`<option value="group">Kelompok ${pad(state.member.assignment_start)}–${pad(state.member.assignment_end)}</option>`;
+ $('sheetTitle').textContent='Tambah Kegiatan Insidental';$('sheetMeta').textContent='Laporan kegiatan di luar jadwal rutin';
+ $('sheetBody').innerHTML=`<div class="card">
+  <div class="inc-grid">
+   <div class="inc-field full"><label class="label">Nama Kegiatan *</label><input id="incTitle" placeholder="Contoh: Pembukaan MPK-PMB Angkatan XXIX"></div>
+   <div class="inc-field"><label class="label">Tanggal *</label><input id="incDate" type="date" value="${state.date||witaParts().date}"></div>
+   <div class="inc-field"><label class="label">Jenis</label><select id="incType"><option value="ceremonial">Seremonial</option><option value="coaching">Pembinaan</option><option value="academic">Akademik</option><option value="visit">Kunjungan</option><option value="community_service">Kerja Bakti/Sosial</option><option value="other">Lainnya</option></select></div>
+   <div class="inc-field"><label class="label">Mulai</label><input id="incStart" type="time"></div><div class="inc-field"><label class="label">Selesai</label><input id="incEnd" type="time"></div>
+   <div class="inc-field full"><label class="label">Lokasi</label><input id="incLocation" placeholder="Contoh: Lapangan/Balai Taruna"></div>
+   <div class="inc-field"><label class="label">Peserta</label><select id="incScope" onchange="incScopeChanged()"><option value="all">Seluruh Catar-Catir</option>${groupOpt}</select></div>
+   <div class="inc-field"><label class="label">Jumlah Peserta</label><input id="incTotal" type="number" min="0" max="80" value="${total}"></div>
+   <div class="inc-field full"><label class="label">Penanggung Jawab</label><input id="incResponsible" value="${esc(state.member.supervisor_name||state.member.display_name)}"></div>
+   <div class="inc-field full"><label class="label">Dasar / Persetujuan</label><input id="incApproval" placeholder="Contoh: Arahan Direktur / persetujuan Koordinator"></div>
+  </div>
+  <label class="label">Kehadiran</label><div class="inc-att">
+   <div><label class="label">Hadir</label><input id="incPresent" type="number" min="0" value="${total}"></div><div><label class="label">Telat</label><input id="incLate" type="number" min="0" value="0"></div><div><label class="label">Izin</label><input id="incPermit" type="number" min="0" value="0"></div><div><label class="label">Sakit</label><input id="incSick" type="number" min="0" value="0"></div><div><label class="label">Tidak hadir</label><input id="incAbsent" type="number" min="0" value="0"></div>
+  </div>
+  <label class="label">Keterangan Kehadiran</label><input id="incAttNote" placeholder="Contoh: 1 sakit dan 1 izin">
+  <label class="label">Ringkasan Pelaksanaan *</label><textarea id="incSummary" placeholder="Jelaskan kegiatan secara singkat, 2–4 kalimat."></textarea>
+  <label class="label">Temuan Penting</label><textarea id="incFindings" placeholder="Opsional"></textarea>
+  <label class="label">Tindak Lanjut</label><textarea id="incFollow" placeholder="Opsional"></textarea>
+  <label class="label">Catatan Tambahan</label><textarea id="incNotes" placeholder="Opsional"></textarea>
+  <button id="saveIncBtn" class="btn primary" style="width:100%;margin-top:10px" onclick="saveIncidental()">SIMPAN LAPORAN KEGIATAN</button>
+ </div>`;
+ $('activityOverlay').classList.remove('hidden')
+}
+function incScopeChanged(){const scope=$('incScope')?.value;let total=80;if(scope==='group'){const g=state.member.full_access?GROUPS.find(x=>x.start===Number(state.selectedGroup)):GROUPS.find(x=>x.start===Number(state.member.assignment_start));total=g?g.end-g.start+1:Number(state.member.assignment_end)-Number(state.member.assignment_start)+1}$('incTotal').value=total;$('incPresent').value=total}
+function nval(id){return Math.max(0,Number($(id)?.value||0)||0)}
+async function saveIncidental(){const btn=$('saveIncBtn');setBusy(btn,true,'Menyimpan...');try{
+ const scope=$('incScope').value,payload={client_id:crypto.randomUUID(),activity_date:$('incDate').value,title:$('incTitle').value,activity_type:$('incType').value,time_start:$('incStart').value,time_end:$('incEnd').value,location:$('incLocation').value,participant_scope:scope,assignment_start:scope==='group'?(state.member.full_access?state.selectedGroup:state.member.assignment_start):null,responsible_person:$('incResponsible').value,approval_basis:$('incApproval').value,participant_total:nval('incTotal'),present_count:nval('incPresent'),late_count:nval('incLate'),permit_count:nval('incPermit'),sick_count:nval('incSick'),absent_count:nval('incAbsent'),attendance_note:$('incAttNote').value,activity_summary:$('incSummary').value,findings:$('incFindings').value,follow_up:$('incFollow').value,notes:$('incNotes').value};
+ const d=await incidentalApi('create',payload);toast('Kegiatan insidental tersimpan.');await loadIncidental();openIncidentalDetail(d.activity.id)
+ }catch(e){toast(e.message,true)}finally{setBusy(btn,false,'SIMPAN LAPORAN KEGIATAN')}}
+async function openIncidentalDetail(id){
+ let a=state.incidental.find(x=>x.id===id);if(!a){try{await loadIncidental();a=state.incidental.find(x=>x.id===id)}catch{}}if(!a)return toast('Kegiatan tidak ditemukan.',true);
+ $('sheetTitle').textContent=a.title;$('sheetMeta').textContent=`${formatDate(a.activity_date)} • ${scopeLabel(a)}`;
+ const sid=String(a.id).replace(/[^a-zA-Z0-9_-]/g,'');
+ $('sheetBody').innerHTML=`<div class="card"><div class="inc-tags"><span class="inc-tag">${esc(INC_TYPE[a.activity_type]||'Lainnya')}</span><span class="inc-tag">${esc(a.location||'Lokasi tidak dicatat')}</span><span class="inc-tag">Hadir ${a.present_count}/${a.participant_total}</span></div>
+  <p class="note"><b>Penanggung jawab:</b> ${esc(a.responsible_person||'-')}<br><b>Pelapor:</b> ${esc(a.executor_name||'-')}${a.approval_basis?`<br><b>Dasar/Persetujuan:</b> ${esc(a.approval_basis)}`:''}</p>
+  <div class="note"><b>Ringkasan:</b><br>${esc(a.activity_summary||'-')}</div>${a.findings?`<div class="note" style="margin-top:7px"><b>Temuan:</b><br>${esc(a.findings)}</div>`:''}${a.follow_up?`<div class="note" style="margin-top:7px"><b>Tindak lanjut:</b><br>${esc(a.follow_up)}</div>`:''}
+ </div>
+ <div class="card"><b style="font-size:11px">📷 Dokumentasi Kegiatan Insidental</b><div class="note">Maksimal 5 foto. Taruna Pendamping dapat membantu mengunggah dokumentasi kegiatan yang berada dalam cakupan timnya.</div><div class="photoctl"><input id="incPhoto-${sid}" type="file" accept="image/*" capture="environment"><input id="incCap-${sid}" placeholder="Keterangan singkat foto"><button class="btn small primary" onclick="uploadIncidentalPhoto('${a.id}','incPhoto-${sid}','incCap-${sid}','incDocs-${sid}')">UPLOAD FOTO</button></div><div id="incDocs-${sid}"></div></div>`;
+ $('activityOverlay').classList.remove('hidden');await renderIncidentalDocs(a.id,`incDocs-${sid}`)
+}
+async function renderIncidentalDocs(id,boxId){const box=$(boxId);if(!box)return;box.innerHTML='<div class="note">Memuat dokumentasi...</div>';try{const d=await incidentalApi('list_documents',{activity_id:id});const docs=d.documents||[];box.innerHTML=`<div class="inc-photo-grid">${docs.map(x=>`<div class="inc-photo"><img src="${x.url}" alt="Dokumentasi"><div class="cap">${esc(x.caption||'Dokumentasi kegiatan')}</div><button class="btn small" style="margin:0 7px 7px" onclick="deleteIncidentalPhoto('${id}','${x.id}','${boxId}')">Hapus</button></div>`).join('')}</div><div class="note">${docs.length}/${d.max_photos} foto tersimpan.</div>`}catch(e){box.innerHTML=`<div class="note">${esc(e.message)}</div>`}}
+async function uploadIncidentalPhoto(id,inputId,captionId,boxId){const inp=$(inputId),file=inp?.files?.[0];if(!file)return toast('Pilih foto terlebih dahulu.',true);try{toast('Mengompres foto...');const c=await compressPhoto(file);await incidentalApi('upload_document',{activity_id:id,mime:c.mime,image_base64:c.data,caption:$(captionId)?.value||''});inp.value='';if($(captionId))$(captionId).value='';toast(`Foto tersimpan (${c.kb} KB).`);await renderIncidentalDocs(id,boxId);await loadIncidental()}catch(e){toast(e.message,true)}}
+async function deleteIncidentalPhoto(id,docId,boxId){if(!confirm('Hapus foto dokumentasi ini?'))return;try{await incidentalApi('delete_document',{activity_id:id,document_id:docId});toast('Foto dihapus.');await renderIncidentalDocs(id,boxId);await loadIncidental()}catch(e){toast(e.message,true)}}
+
 async function chooseGroup(start){
  state.selectedGroup=Number(start);$('groupSelector').value=String(start);
  showTab('today');await loadHome();
@@ -622,8 +716,9 @@ async function chooseGroup(start){
 
 function showTab(tab){
  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
- ['today','participants','history','recap','monitor'].forEach(t=>$(`tab-${t}`).classList.toggle('hidden',t!==tab));
+ ['today','participants','history','incidental','recap','monitor'].forEach(t=>$(`tab-${t}`).classList.toggle('hidden',t!==tab));
  if(tab==='history')loadHistory();
+ if(tab==='incidental')loadIncidental();
  if(tab==='recap'){if(!$('recapFrom').value)initRecapDates();loadRecap()}
  if(tab==='monitor')loadMonitor();
 }
