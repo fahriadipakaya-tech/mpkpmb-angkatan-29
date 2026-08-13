@@ -116,6 +116,14 @@ textarea{min-height:90px;resize:vertical}
 .recap-table td.numc,.recap-table th.numc{text-align:center}
 .recap-scroll{overflow:auto}
 @media(max-width:560px){.recap-controls{grid-template-columns:1fr 1fr}.recap-controls .btn{grid-column:1/-1}}
+
+.docgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
+.docitem{border:1px solid var(--line);border-radius:12px;padding:7px;background:#fff}
+.docitem img{width:100%;height:120px;object-fit:cover;border-radius:9px;display:block}
+.doccap{font-size:9px;color:var(--muted);margin:5px 0;line-height:1.35}
+.photoctl{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
+@media(max-width:460px){.docitem img{height:100px}}
+
 @media(min-width:700px){.groups{grid-template-columns:repeat(4,1fr)}.wrap{padding-left:20px;padding-right:20px}.tabs{top:74px}}
 </style>
 </head>
@@ -250,6 +258,59 @@ textarea{min-height:90px;resize:vertical}
 <script>
 const API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-companion';
 const RECAP_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-recap';
+
+const MEDIA_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-media';
+async function mediaApi(payload){
+  let r;
+  try{r=await fetch(MEDIA_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}
+  catch{throw new Error('Tidak dapat terhubung ke server dokumentasi.')}
+  let d={}; try{d=await r.json()}catch{}
+  if(!r.ok||!d.ok)throw new Error(d.error||`Server dokumentasi ${r.status}`);
+  return d
+}
+async function compressPhoto(file){
+  if(!file||!file.type.startsWith('image/'))throw new Error('Pilih file foto.');
+  const url=URL.createObjectURL(file);
+  try{
+    const img=new Image();
+    await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error('Foto tidak dapat dibaca.'));img.src=url});
+    const max=1280, scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale));
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    canvas.getContext('2d',{alpha:false}).drawImage(img,0,0,w,h);
+    let quality=.72,blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality));
+    while(blob&&blob.size>850*1024&&quality>.42){quality-=.08;blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality))}
+    if(!blob)throw new Error('Gagal mengompres foto.');
+    if(blob.size>900*1024)throw new Error('Foto masih terlalu besar setelah kompresi.');
+    return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res({data:String(fr.result),mime:'image/jpeg',kb:Math.round(blob.size/1024)});fr.onerror=()=>rej(new Error('Gagal membaca foto.'));fr.readAsDataURL(blob)})
+  }finally{URL.revokeObjectURL(url)}
+}
+async function renderDocuments(source,recordId,containerId,worshipGroup=''){
+  const box=document.getElementById(containerId); if(!box)return;
+  box.innerHTML='<div class="note">Memuat dokumentasi...</div>';
+  try{
+    const d=await mediaApi({action:'list_documents',source,name:state.member.display_name,record_id:recordId,worship_group:worshipGroup});
+    const docs=d.documents||[];
+    box.innerHTML=`<div class="docgrid">${docs.map(x=>`<div class="docitem"><img src="${x.url}" alt="Dokumentasi"><div class="doccap">${esc(x.caption||'Dokumentasi kegiatan')}</div><button class="btn small" onclick="deleteDocument('${source}','${recordId}','${x.id}','${containerId}','${worshipGroup}')">Hapus</button></div>`).join('')}</div>
+    <div class="note">${docs.length}/${d.max_photos} foto tersimpan. Foto otomatis dikompres sebelum diunggah.</div>`;
+  }catch(e){box.innerHTML=`<div class="note">${esc(e.message)}</div>`}
+}
+async function uploadDocument(source,recordId,inputId,captionId,containerId,worshipGroup=''){
+  const inp=document.getElementById(inputId),file=inp?.files?.[0];if(!file)return toast('Pilih foto terlebih dahulu.',true);
+  try{
+    toast('Mengompres foto...');
+    const c=await compressPhoto(file);
+    await mediaApi({action:'upload_document',source,name:state.member.display_name,record_id:recordId,worship_group:worshipGroup,mime:c.mime,image_base64:c.data,caption:document.getElementById(captionId)?.value||''});
+    inp.value=''; const cap=document.getElementById(captionId);if(cap)cap.value='';
+    toast(`Foto tersimpan (${c.kb} KB).`);await renderDocuments(source,recordId,containerId,worshipGroup)
+  }catch(e){toast(e.message,true)}
+}
+async function deleteDocument(source,recordId,docId,containerId,worshipGroup=''){
+  if(!confirm('Hapus foto dokumentasi ini?'))return;
+  try{await mediaApi({action:'delete_document',source,name:state.member.display_name,record_id:recordId,document_id:docId,worship_group:worshipGroup});toast('Foto dihapus.');await renderDocuments(source,recordId,containerId,worshipGroup)}
+  catch(e){toast(e.message,true)}
+}
+
 const DAYS=['','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 const GROUPS=[
  {start:1,end:12,supervisor:'Fahriadi'},{start:13,end:24,supervisor:'Gerald'},
@@ -430,19 +491,37 @@ async function openActivity(scheduleId){
      }).join('')}</div>
    </div>
    <div class="card">
-     <label class="label" style="margin-top:0">Catatan Kegiatan</label>
-     <textarea id="activityNotes" ${completed?'disabled':''} placeholder="Catatan pelaksanaan, kejadian penting, perkembangan peserta...">${esc(log.notes||'')}</textarea>
-     ${completed?'':`<button id="completeBtn" class="btn primary full" style="margin-top:10px">SELESAIKAN KEGIATAN</button>`}
-   </div>`;
+     <label class="label" style="margin-top:0">Ringkasan Pelaksanaan</label>
+     <textarea id="activitySummary" ${completed?'disabled':''} placeholder="Apa yang dilaksanakan pada kegiatan ini?">${esc(log.activity_summary||'')}</textarea>
+     <label class="label">Temuan</label>
+     <textarea id="activityFindings" ${completed?'disabled':''} placeholder="Temuan penting, kedisiplinan, perkembangan, atau kendala.">${esc(log.findings||'')}</textarea>
+     <label class="label">Tindak Lanjut</label>
+     <textarea id="activityFollowUp" ${completed?'disabled':''} placeholder="Pembinaan atau tindak lanjut yang diperlukan.">${esc(log.follow_up||'')}</textarea>
+     <label class="label">Catatan Tambahan</label>
+     <textarea id="activityNotes" ${completed?'disabled':''} placeholder="Opsional.">${esc(log.notes||'')}</textarea>
+   </div>
+   <div class="card">
+     <b style="font-size:12px">Dokumentasi Kegiatan (Opsional)</b>
+     <div class="note">Maksimal 2 foto per kegiatan. Gunakan untuk kegiatan utama; tidak perlu memotret kegiatan rutin setiap saat.</div>
+     <div class="photoctl">
+       <input id="pendPhoto" type="file" accept="image/*" capture="environment">
+       <input id="pendCaption" placeholder="Keterangan foto (opsional)">
+       <button class="btn small primary" onclick="uploadDocument('pendamping','${log.id}','pendPhoto','pendCaption','pendDocs')">Unggah Foto</button>
+     </div>
+     <div id="pendDocs"></div>
+   </div>
+   ${completed?'':`<div class="card"><button id="completeBtn" class="btn primary full">SELESAIKAN KEGIATAN</button></div>`}`;
  $('activityOverlay').classList.remove('hidden');
+ renderDocuments('pendamping',log.id,'pendDocs');
  if(!completed)$('completeBtn').onclick=()=>completeActivity(log.id);
 }
 async function completeActivity(logId){
  const btn=$('completeBtn');setBusy(btn,true,'Menyimpan...');
  const attendance=[...document.querySelectorAll('.att-status')].map(x=>({participant_id:Number(x.dataset.pid),status:x.value,note:''}));
  const notes=$('activityNotes').value;
+ const activity_summary=$('activitySummary').value,findings=$('activityFindings').value,follow_up=$('activityFollowUp').value;
  try{
-   await api('complete_activity',{log_id:logId,attendance,notes});
+   await api('complete_activity',{log_id:logId,attendance,notes,activity_summary,findings,follow_up});
    toast('Kegiatan berhasil diselesaikan.');$('activityOverlay').classList.add('hidden');await loadHome();
  }catch(e){toast(e.message,true)}
  finally{setBusy(btn,false,'SELESAIKAN KEGIATAN')}
@@ -455,7 +534,7 @@ async function loadHistory(){
      const s=map.get(Number(l.schedule_id));
      return `<div class="historyitem"><strong>${esc(s?.activity_name||'Kegiatan')}</strong>
      <small>${formatDate(l.activity_date)} • Kelompok ${pad(l.assignment_start)}–${pad(l.assignment_end)} • ${esc(l.executor_name)}<br>
-     Status: ${l.status==='completed'?'Selesai':'Berlangsung'}${l.notes?` • ${esc(l.notes)}`:''}</small></div>`
+     Status: ${l.status==='completed'?'Selesai':'Berlangsung'}${l.activity_summary?`<br>Ringkasan: ${esc(l.activity_summary)}`:''}${l.follow_up?`<br>Tindak lanjut: ${esc(l.follow_up)}`:''}</small></div>`
    }).join(''):'<div class="empty">Belum ada riwayat kegiatan.</div>';
  }catch(e){box.innerHTML='<div class="empty">Gagal memuat riwayat.</div>';toast(e.message,true)}
 }
