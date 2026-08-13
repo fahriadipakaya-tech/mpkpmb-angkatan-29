@@ -34,7 +34,7 @@ textarea{min-height:90px;resize:vertical}
 .title{font-weight:900;font-size:15px;line-height:1.15}.sub{font-size:9.5px;opacity:.84;margin-top:3px}.right{margin-left:auto;text-align:right}.user{font-size:10.5px;font-weight:850}.role{font-size:8.5px;opacity:.82;margin-top:2px}
 .logout{border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#fff;border-radius:10px;padding:7px 9px;font-size:9.5px;font-weight:850}
 .group-chip{display:inline-block;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.14);font-size:9px;font-weight:900;margin-top:6px}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:sticky;top:68px;z-index:20;background:var(--bg);padding:8px 0}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;position:sticky;top:68px;z-index:20;background:var(--bg);padding:8px 0}
 .tab{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 4px;text-align:center;font-size:10.5px;font-weight:850;color:#675f71}.tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
 .sectionhead{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin:12px 2px 8px}.sectionhead h2{font-size:16px;margin:0}.sectionhead small{font-size:9.5px;color:var(--muted)}
 .datebar{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px}.datebar input{padding:9px}
@@ -56,6 +56,16 @@ textarea{min-height:90px;resize:vertical}
 .docitem img{width:100%;height:120px;object-fit:cover;border-radius:9px;display:block}
 .doccap{font-size:9px;color:var(--muted);margin:5px 0;line-height:1.35}
 .photoctl{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
+
+.docpanel{display:grid;gap:10px}
+.docactivity{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:var(--shadow)}
+.docactivity-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:8px}
+.docactivity-ico{width:38px;height:38px;border-radius:12px;background:#eeeaf5;color:var(--brand);display:grid;place-items:center;font-size:17px;flex:0 0 auto}
+.docactivity-title{font-size:11.5px;font-weight:900;line-height:1.3}
+.docactivity-meta{font-size:8.7px;color:var(--muted);margin-top:3px;line-height:1.4}
+.dochint{background:#f0edf5;border:1px solid #e2ddeb;border-radius:14px;padding:10px 11px;font-size:9.5px;color:#655d70;line-height:1.55;margin-bottom:10px}
+.docbadge{display:inline-block;padding:4px 7px;border-radius:999px;background:#e9f4ef;color:var(--ok);font-size:8px;font-weight:900;margin-left:auto}
+
 @media(max-width:460px){.docitem img{height:100px}}
 
 @media(max-width:460px){.group-grid{grid-template-columns:1fr}.participant{grid-template-columns:34px 1fr 104px}.right{display:none}}
@@ -113,6 +123,7 @@ textarea{min-height:90px;resize:vertical}
   <nav class="tabs">
    <button class="tab active" data-tab="today">Hari Ini</button>
    <button class="tab" data-tab="history">Riwayat</button>
+   <button class="tab" data-tab="docs">Dokumentasi</button>
    <button class="tab" data-tab="recap">Rekap</button>
    <button id="monitorTab" class="tab hidden" data-tab="monitor">Monitor</button>
   </nav>
@@ -128,6 +139,15 @@ textarea{min-height:90px;resize:vertical}
   <section id="tab-history" class="hidden">
    <div class="sectionhead"><h2>Riwayat Kerohanian</h2><small id="historyGroup">-</small></div>
    <div id="historyList" class="card"><div class="empty">Belum dimuat.</div></div>
+  </section>
+
+  <section id="tab-docs" class="hidden">
+   <div class="sectionhead"><h2>Dokumentasi Kerohanian</h2><small id="docsGroupLabel">-</small></div>
+   <div class="dochint">
+    Dokumentasi bersifat <b>opsional</b> dan digunakan untuk laporan kegiatan kepada Koordinator/Pimpinan.
+    Maksimal <b>1 foto</b> untuk setiap kegiatan kerohanian khusus. Foto dapat diambil melalui kamera atau dipilih dari galeri.
+   </div>
+   <div id="docsActivityList" class="docpanel"><div class="empty">Belum dimuat.</div></div>
   </section>
 
   <section id="tab-recap" class="hidden">
@@ -256,7 +276,7 @@ async function login(){
   $('loginView').classList.add('hidden');$('appView').classList.remove('hidden');
   $('topUser').textContent=state.member.display_name;$('topRole').textContent=state.member.full_access?'Koordinator':'Petugas Kerohanian';
   $('groupChip').textContent=d.group_label;$('todayTitle').textContent='Jadwal Ibadah — '+d.group_label;
-  $('historyGroup').textContent=d.group_label;$('officerGroup').textContent=d.group_label;
+  $('historyGroup').textContent=d.group_label;$('docsGroupLabel').textContent=d.group_label;$('officerGroup').textContent=d.group_label;
   $('monitorTab').classList.toggle('hidden',!state.member.full_access);
   $('dateInput').value=state.date;await loadHome()
  }catch(e){toast(e.message,true)}
@@ -284,7 +304,7 @@ function renderSchedule(){
   const l=logFor(s.id),status=l?.status||'new',badge=status==='completed'?['Selesai','b-done']:status==='started'?['Berlangsung','b-start']:['Belum','b-new'];
   return `<div class="activity ${Number(curr)===Number(s.id)?'current':''}">
    <div class="time">${String(s.time_local).slice(0,5)}<br><span style="color:#968ca3">${String(s.time_end).slice(0,5)}</span></div>
-   <div><div class="aname">${esc(s.worship_type)}</div><div class="meta">${esc(LABEL[state.group])}${l?` • ${esc(l.executor_name)}`:''}</div></div>
+   <div><div class="aname">${esc(s.worship_type)}</div><div class="meta">${esc(LABEL[state.group])}${l?` • ${esc(l.executor_name)}`:''}${isSpecialWorship(s.worship_type)?' • 📷 dokumentasi tersedia':''}</div></div>
    <div><span class="badge ${badge[1]}">${badge[0]}</span><br><button class="btn small primary" style="margin-top:5px" onclick="openActivity(${s.id})">${l?'Buka':'Mulai'}</button></div>
   </div>`
  }).join('')
@@ -314,7 +334,7 @@ function openLog(id){
    <label class="label">Tindak Lanjut</label><textarea id="activityFollowUp" ${done?'disabled':''} placeholder="Tindak lanjut pembinaan (bila diperlukan).">${esc(l.follow_up||'')}</textarea>
    <label class="label">Catatan Tambahan</label><textarea id="notes" ${done?'disabled':''}>${esc(l.notes||'')}</textarea>
  </div>
- ${(()=>{const s=(state.home.schedule||[]).find(x=>Number(x.id)===Number(l.spiritual_schedule_id));const special=new Set(['Ibadah Kamis Pagi','Ibadah Kamis Malam',"Ibadah Jum'at",'Ibadah Minggu']).has(s?.worship_type);return special?`<div class="card"><b style="font-size:12px">Dokumentasi Kegiatan Khusus (Opsional)</b><div class="note">Maksimal 1 foto. Ibadah rutin tidak memerlukan dokumentasi foto.</div><div class="photoctl"><input id="spPhoto" type="file" accept="image/*" capture="environment"><input id="spCaption" placeholder="Keterangan foto (opsional)"><button class="btn small primary" onclick="uploadDocument('kerohanian','${l.id}','spPhoto','spCaption','spDocs','${state.group}')">Unggah Foto</button></div><div id="spDocs"></div></div>`:''})()}
+ ${(()=>{const s=(state.home.schedule||[]).find(x=>Number(x.id)===Number(l.spiritual_schedule_id));const special=new Set(['Ibadah Kamis Pagi','Ibadah Kamis Malam',"Ibadah Jum'at",'Ibadah Minggu']).has(s?.worship_type);return special?`<div class="card"><b style="font-size:12px">📷 Dokumentasi Kegiatan</b><div class="note">Opsional • maksimal 1 foto untuk kegiatan khusus. Foto ini dapat tampil pada Monitoring Pimpinan.</div><div class="photoctl"><input id="spPhoto" type="file" accept="image/*" capture="environment"><input id="spCaption" placeholder="Keterangan singkat foto"><button class="btn small primary" onclick="uploadDocument('kerohanian','${l.id}','spPhoto','spCaption','spDocs','${state.group}')">UPLOAD DOKUMENTASI</button></div><div id="spDocs"></div></div>`:''})()}
  ${done?'<div class="card"><div class="note">Kegiatan ini sudah diselesaikan.</div></div>':`<div class="card"><button class="btn primary full" onclick="completeActivity('${l.id}')">SELESAIKAN KEGIATAN</button></div>`}`;
  $('overlay').classList.remove('hidden');
  const sc=(state.home.schedule||[]).find(x=>Number(x.id)===Number(l.spiritual_schedule_id));
@@ -325,6 +345,48 @@ async function completeActivity(id){
  const rows=[...document.querySelectorAll('select.status')].map(s=>({participant_id:Number(s.dataset.pid),status:s.value,note:''}));
  if(!rows.length)return toast('Daftar peserta kosong.',true);
  try{await api('complete_activity',{log_id:id,attendance:rows,notes:$('notes').value,activity_summary:$('activitySummary').value,findings:$('activityFindings').value,follow_up:$('activityFollowUp').value});$('overlay').classList.add('hidden');toast('Kegiatan ibadah selesai disimpan.');await loadHome()}catch(e){toast(e.message,true)}
+}
+
+function isSpecialWorship(worshipType){
+ return new Set(['Ibadah Kamis Pagi','Ibadah Kamis Malam',"Ibadah Jum'at",'Ibadah Minggu']).has(worshipType)
+}
+function safeId(v){return String(v||'').replace(/[^a-zA-Z0-9_-]/g,'')}
+async function loadDocumentation(){
+ const box=$('docsActivityList');box.innerHTML='<div class="empty">Memuat dokumentasi...</div>';
+ $('docsGroupLabel').textContent=LABEL[state.group]||'-';
+ try{
+  const d=await api('history'),sm=new Map((d.schedule||[]).map(s=>[Number(s.id),s]));
+  const logs=(d.logs||[]).filter(l=>{
+    const s=sm.get(Number(l.spiritual_schedule_id));
+    return s && isSpecialWorship(s.worship_type)
+  });
+  if(!logs.length){
+    box.innerHTML='<div class="card"><div class="empty">Belum ada kegiatan kerohanian khusus yang tercatat. Setelah kegiatan dimulai, dokumentasi dapat diunggah dari menu ini.</div></div>';
+    return;
+  }
+  box.innerHTML=logs.map(l=>{
+    const s=sm.get(Number(l.spiritual_schedule_id)),sid=safeId(l.id);
+    return `<div class="docactivity">
+      <div class="docactivity-head">
+       <div class="docactivity-ico">📷</div>
+       <div><div class="docactivity-title">${esc(s?.worship_type||l.session_name)}</div>
+       <div class="docactivity-meta">${formatDate(l.activity_date)} • ${esc(l.executor_name)} • ${l.status==='completed'?'Selesai':'Berlangsung'}</div></div>
+       <span class="docbadge">Maks. 1 foto</span>
+      </div>
+      ${l.activity_summary?`<div class="note" style="margin-bottom:7px"><b>Ringkasan:</b> ${esc(l.activity_summary)}</div>`:''}
+      <div class="photoctl">
+       <input id="docPhoto-${sid}" type="file" accept="image/*" capture="environment">
+       <input id="docCaption-${sid}" placeholder="Keterangan singkat foto">
+       <button class="btn small primary" onclick="uploadDocument('kerohanian','${l.id}','docPhoto-${sid}','docCaption-${sid}','docList-${sid}','${state.group}')">UPLOAD FOTO</button>
+      </div>
+      <div id="docList-${sid}"></div>
+    </div>`
+  }).join('');
+  for(const l of logs){
+    const sid=safeId(l.id);
+    await renderDocuments('kerohanian',l.id,`docList-${sid}`,state.group);
+  }
+ }catch(e){box.innerHTML='<div class="card"><div class="empty">Dokumentasi belum dapat dimuat.</div></div>';toast(e.message,true)}
 }
 async function loadHistory(){
  const box=$('historyList');box.innerHTML='<div class="empty">Memuat...</div>';
@@ -369,7 +431,7 @@ async function loadMonitor(){
 }
 async function saveOfficer(code){const name=$(`off-${code}`).value.trim();try{await api('configure_officer',{member_code:code,display_name:name});toast('Petugas diperbarui.');await loadMonitor()}catch(e){toast(e.message,true)}}
 async function saveReligion(id){const religion=$(`rel-${id}`).value;if(!religion)return toast('Pilih agama dari data resmi.',true);try{await api('configure_participant_religion',{participant_id:id,religion});toast('Data peserta diperbarui.');await loadHome();await loadMonitor()}catch(e){toast(e.message,true)}}
-function showTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));['today','history','recap','monitor'].forEach(x=>$(`tab-${x}`).classList.toggle('hidden',x!==t));if(t==='history')loadHistory();if(t==='recap'){if(!$('recapFrom').value)initRecapDates();loadRecap()}if(t==='monitor')loadMonitor()}
+function showTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));['today','history','docs','recap','monitor'].forEach(x=>$(`tab-${x}`).classList.toggle('hidden',x!==t));if(t==='history')loadHistory();if(t==='docs')loadDocumentation();if(t==='recap'){if(!$('recapFrom').value)initRecapDates();loadRecap()}if(t==='monitor')loadMonitor()}
 document.querySelectorAll('.tab').forEach(x=>x.addEventListener('click',()=>showTab(x.dataset.tab)));
 $('loginBtn').addEventListener('click',login);
 $('recapLoadBtn').addEventListener('click',loadRecap);
