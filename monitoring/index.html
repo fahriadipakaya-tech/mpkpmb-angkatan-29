@@ -60,7 +60,7 @@ button,input,select{font:inherit}.hidden{display:none!important}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:11px 0}.metric{background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:var(--shadow)}
 .metric .micon{width:34px;height:34px;border-radius:11px;background:#edf4f2;display:grid;place-items:center;font-size:15px}.metric strong{display:block;font-size:24px;margin-top:10px}.metric span{font-size:9px;color:var(--muted)}.metric.good strong{color:var(--good)}.metric.warn strong{color:var(--warn)}.metric.bad strong{color:var(--bad)}
 .section{scroll-margin-top:130px;margin-top:17px}.section-title{display:flex;align-items:flex-end;justify-content:space-between;margin:0 2px 8px}.section-title h3{font-size:15px;margin:0}.section-title small{font-size:8.5px;color:var(--muted)}
-.area-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.area{background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:var(--shadow)}
+.area-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.area{background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:var(--shadow)}
 .area-top{display:flex;gap:9px;align-items:center}.area-icon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:17px}.a1{background:#e6f2ef}.a2{background:#e8edf6}.a3{background:#f3ece6}.area h4{font-size:12px;margin:0}.area .status{font-size:8.5px;font-weight:900;margin-top:2px}.status.good{color:var(--good)}.status.warn{color:var(--warn)}.status.bad{color:var(--bad)}
 .area-numbers{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:11px}.mini{background:#f7f9f9;border-radius:11px;padding:9px}.mini strong{display:block;font-size:15px}.mini span{font-size:7.7px;color:var(--muted)}
 
@@ -210,6 +210,7 @@ button,input,select{font:inherit}.hidden{display:none!important}
 
 <script>
 const API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-executive';
+const INCIDENTAL_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-incidental';
 const HERO_ROTATE_MS=6500;
 const state={name:'',pin:'',member:null,data:null,heroSlides:[],heroIndex:0,heroTimer:null};
 const $=id=>document.getElementById(id);
@@ -228,6 +229,7 @@ function buildHeroSlides(d){
    {eyebrow:'Kondisi Umum MPK-PMB',title:mainTitle,text:`Ringkasan ${fmtDate(d.date)} berdasarkan kegiatan yang waktunya sudah terlewati dan data yang sudah dicatat.`,meta:`Pelaksanaan ${s.completion_pct}% • Kehadiran ${a.attendance_pct==null?'-':a.attendance_pct+'%'} • ${s.not_started} belum tercatat.`,pct:s.completion_pct+'%',caption:'Pelaksanaan kegiatan',label:mainLabel},
    {eyebrow:'Kehadiran Peserta',title:`Kehadiran Catar-Catir ${a.attendance_pct==null?'-':a.attendance_pct+'%'}`,text:`Data kehadiran berasal dari pencatatan kegiatan harian yang sudah diinput oleh Pendamping dan Kerohanian.`,meta:`Terlambat ${a.late||0} • Izin ${a.permit||0} • Sakit ${a.sick||0} • Tidak hadir ${a.absent||0}.`,pct:a.attendance_pct==null?'-':a.attendance_pct+'%',caption:'Kehadiran peserta',label:(a.attendance_pct ?? 0)>=95?'Baik':((a.attendance_pct ?? 0)>=85?'Perlu perhatian':'Perlu tindak lanjut')},
    {eyebrow:'Perkembangan Penilaian',title:'Tren Penilaian Angkatan XXIX',text:`Nilai inti MPK-PMB terus diperbarui. ${topAssess}.`,meta:`Lihat menu Penilaian untuk PBB, Kedisiplinan, Kemampuan Komputer, Karya Ilmiah, dan PPKK per Prodi.`,pct:scoreText(avgCat('PBB')),caption:'Rata-rata PBB',label:'skala 1–10'},
+   ...(d.incidental?.recent?.length?[{eyebrow:'Kegiatan Insidental / Strategis',title:d.incidental.recent[0].title,text:d.incidental.recent[0].activity_summary||'Kegiatan insidental telah dilaporkan.',meta:`${fmtDate(d.incidental.recent[0].activity_date)}${d.incidental.recent[0].location?' • '+d.incidental.recent[0].location:''}`,pct:String(d.incidental.today_count||0),caption:'Insidental hari ini',label:`${d.incidental.week_count||0} dalam 7 hari`}]:[]),
    {eyebrow:'Dokumentasi Terbaru',title:docs.length?docs[0].title:'Dokumentasi kegiatan terbaru',text:docs.length?(docs[0].summary||docs[0].caption||'Dokumentasi kegiatan telah diunggah.'): 'Foto kegiatan dari Pendamping, Kerohanian, dan BK kelompok akan muncul di sini.',meta:docs.length?`${docs[0].source} • ${fmtDate(docs[0].date)}`:'Belum ada dokumentasi terbaru.',pct:String(docs.length),caption:'Foto terbaru',label:'siap dipantau'},
  ]
  if(issues.length){
@@ -245,6 +247,7 @@ function renderHero(d){
    `Pelaksanaan kegiatan ${d.summary.completion_pct}%`,
    `Kehadiran ${d.summary.attendance?.attendance_pct==null?'-':d.summary.attendance.attendance_pct+'%'}`,
    ...(d.issues||[]).slice(0,3).map(x=>x.title),
+   ...(d.incidental?.today||[]).slice(0,2).map(x=>`Insidental: ${x.title}`),
    ...(d.documents||[]).slice(0,2).map(x=>`${x.source}: ${x.title}`)
  ];
  $('tickerLine').textContent=tickerText(tickerItems);
@@ -278,10 +281,21 @@ function renderHeroSlide(i,manual=false){
  }
 }
 function toast(m,e=false){const t=$('toast');t.textContent=m;t.className='toast show'+(e?' err':'');clearTimeout(toast.tm);toast.tm=setTimeout(()=>t.className='toast',3200)}
+
+async function incidentalExecutive(date){
+ let r;try{r=await fetch(INCIDENTAL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'executive_summary',name:state.name,pin:state.pin,date})})}
+ catch{return {today_count:0,week_count:0,today:[],recent:[],documents:[],unavailable:true}}
+ let d={};try{d=await r.json()}catch{};if(!r.ok||!d.ok)return {today_count:0,week_count:0,today:[],recent:[],documents:[],unavailable:true};return d
+}
 async function api(action,p={}){let r;try{r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...p,...(state.name&&!['list_members','login'].includes(action)?{name:state.name,pin:state.pin}:{})})})}catch{throw new Error('Tidak dapat terhubung ke server Monitoring Pimpinan.')}let d={};try{d=await r.json()}catch{}if(!r.ok||!d.ok)throw new Error(d.error||`Server ${r.status}`);return d}
 async function init(){try{const d=await api('list_members');$('loginName').innerHTML='<option value="">-- Pilih pengguna --</option>'+d.members.map(x=>`<option value="${esc(x.display_name)}">${esc(roleLabel(x.role))}</option>`).join('');const last=localStorage.getItem('mpk_exec_name');if(last&&d.members.some(x=>x.display_name===last))$('loginName').value=last}catch(e){toast(e.message,true)}}
 async function login(){const name=$('loginName').value,pin=$('loginPin').value.trim();if(!name)return toast('Pilih pengguna.',true);if(!/^\d{6,12}$/.test(pin))return toast('PIN harus 6–12 angka.',true);const b=$('loginBtn');b.disabled=true;b.textContent='Membuka...';try{const d=await api('login',{name,pin});state.name=name;state.pin=pin;state.member=d.member;localStorage.setItem('mpk_exec_name',name);$('userName').textContent=roleLabel(d.member.role);$('userRole').textContent='Akses Monitoring Pimpinan';$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');$('dateInput').value=witaDate();await loadDashboard();if(d.member.must_change_pin)setTimeout(()=>$('pinModal').classList.remove('hidden'),350)}catch(e){toast(e.message,true)}finally{b.disabled=false;b.textContent='BUKA DASHBOARD'}}
-async function loadDashboard(){const date=$('dateInput').value||witaDate(),b=$('refreshBtn');b.disabled=true;b.textContent='Memuat...';try{state.data=await api('dashboard',{date});render()}catch(e){toast(e.message,true)}finally{b.disabled=false;b.textContent='Perbarui'}}
+async function loadDashboard(){const date=$('dateInput').value||witaDate(),b=$('refreshBtn');b.disabled=true;b.textContent='Memuat...';try{
+ const [main,inc]=await Promise.all([api('dashboard',{date}),incidentalExecutive(date)]);
+ main.incidental=inc||{today_count:0,week_count:0,today:[],recent:[],documents:[]};
+ main.documents=[...(main.documents||[]),...(main.incidental.documents||[])].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,6);
+ state.data=main;render()
+}catch(e){toast(e.message,true)}finally{b.disabled=false;b.textContent='Perbarui'}}
 function overallLabel(p){if(p>=90)return['Kegiatan berjalan baik','Baik','good'];if(p>=75)return['Kegiatan berjalan, perlu beberapa perhatian','Perlu perhatian','warn'];return['Pelaksanaan memerlukan perhatian','Perlu tindak lanjut','bad']}
 function render(){
  const d=state.data,s=d.summary,a=s.attendance||{},[title,label,cls]=overallLabel(s.completion_pct);
@@ -297,11 +311,12 @@ function render(){
 function pct(x){return x.expected?Math.round(x.completed/x.expected*100):100}
 function areaStatus(p){return p>=90?['Baik','good']:p>=70?['Perlu perhatian','warn']:['Perlu tindak lanjut','bad']}
 function renderAreas(){
- const s=state.data.sections,p=s.pendamping,k=s.kerohanian,b=s.bk,ps=areaStatus(pct(p)),ks=areaStatus(pct(k)),bs=b.urgent_observations?['Perlu perhatian','warn']:['Terkendali','good'];
+ const s=state.data.sections,p=s.pendamping,k=s.kerohanian,b=s.bk,i=state.data.incidental||{today_count:0,week_count:0},ps=areaStatus(pct(p)),ks=areaStatus(pct(k)),bs=b.urgent_observations?['Perlu perhatian','warn']:['Terkendali','good'];
  $('areas').innerHTML=`
  <div class="area"><div class="area-top"><div class="area-icon a1">◉</div><div><h4>Pendampingan</h4><div class="status ${ps[1]}">${ps[0]}</div></div></div><div class="area-numbers"><div class="mini"><strong>${p.completed}/${p.expected}</strong><span>kegiatan/kelompok selesai</span></div><div class="mini"><strong>${p.attendance.attendance_pct==null?'-':p.attendance.attendance_pct+'%'}</strong><span>kehadiran</span></div></div></div>
  <div class="area"><div class="area-top"><div class="area-icon a2">◇</div><div><h4>Kerohanian</h4><div class="status ${ks[1]}">${ks[0]}</div></div></div><div class="area-numbers"><div class="mini"><strong>${k.completed}/${k.expected}</strong><span>ibadah selesai</span></div><div class="mini"><strong>${k.attendance.attendance_pct==null?'-':k.attendance.attendance_pct+'%'}</strong><span>kehadiran</span></div></div></div>
- <div class="area"><div class="area-top"><div class="area-icon a3">♡</div><div><h4>Bimbingan Konseling</h4><div class="status ${bs[1]}">${bs[0]}</div></div></div><div class="area-numbers"><div class="mini"><strong>${b.active_sessions}</strong><span>pendampingan aktif</span></div><div class="mini"><strong>${b.group_completed}</strong><span>BK kelompok selesai hari ini</span></div></div><p class="note" style="margin:9px 0 0">Isi konseling individual tidak ditampilkan.</p></div>`
+ <div class="area"><div class="area-top"><div class="area-icon a3">♡</div><div><h4>Bimbingan Konseling</h4><div class="status ${bs[1]}">${bs[0]}</div></div></div><div class="area-numbers"><div class="mini"><strong>${b.active_sessions}</strong><span>pendampingan aktif</span></div><div class="mini"><strong>${b.group_completed}</strong><span>BK kelompok selesai hari ini</span></div></div><p class="note" style="margin:9px 0 0">Isi konseling individual tidak ditampilkan.</p></div>
+ <div class="area"><div class="area-top"><div class="area-icon a1">★</div><div><h4>Kegiatan Insidental</h4><div class="status good">Kegiatan tambahan</div></div></div><div class="area-numbers"><div class="mini"><strong>${i.today_count||0}</strong><span>hari ini</span></div><div class="mini"><strong>${i.week_count||0}</strong><span>7 hari terakhir</span></div></div><p class="note" style="margin:9px 0 0">Tidak memengaruhi persentase jadwal rutin.</p></div>`
 }
 function scoreText(v){return v==null?'-':Number(v).toFixed(2)}
 function renderAssessments(){
@@ -322,18 +337,20 @@ function docText(d){
  const chunks=[];if(d.summary)chunks.push(`<b>Ringkasan:</b> ${esc(d.summary)}`);else if(d.caption)chunks.push(esc(d.caption));if(d.findings)chunks.push(`<b>Temuan:</b> ${esc(d.findings)}`);if(d.follow_up)chunks.push(`<b>Tindak lanjut:</b> ${esc(d.follow_up)}`);return chunks.slice(0,3).join('<br>')
 }
 function renderDocs(){
- const docs=state.data.documents||[];$('docs').innerHTML=docs.length?docs.map(d=>`<article class="doc"><div class="doc-img">${d.url?`<img src="${d.url}" alt="Dokumentasi ${esc(d.title)}">`:`<div class="no-photo">Foto tidak tersedia</div>`}<span class="source">${esc(d.source)}</span></div><div class="doc-body"><h4>${esc(d.title)}</h4><div class="doc-sub">${esc(d.subtitle||'')} • ${fmtDate(d.date)}</div><div class="doc-text">${docText(d)||'Dokumentasi kegiatan telah diunggah.'}</div></div></article>`).join(''):'<div class="panel" style="grid-column:1/-1"><div class="no-photo">Belum ada foto dokumentasi yang diunggah dari Pendamping, Kerohanian, atau BK Kelompok.</div></div>'
+ const docs=state.data.documents||[];$('docs').innerHTML=docs.length?docs.map(d=>`<article class="doc"><div class="doc-img">${d.url?`<img src="${d.url}" alt="Dokumentasi ${esc(d.title)}">`:`<div class="no-photo">Foto tidak tersedia</div>`}<span class="source">${esc(d.source)}</span></div><div class="doc-body"><h4>${esc(d.title)}</h4><div class="doc-sub">${esc(d.subtitle||'')} • ${fmtDate(d.date)}</div><div class="doc-text">${docText(d)||'Dokumentasi kegiatan telah diunggah.'}</div></div></article>`).join(''):'<div class="panel" style="grid-column:1/-1"><div class="no-photo">Belum ada foto dokumentasi yang diunggah dari Pendamping, Kerohanian, BK Kelompok, atau Kegiatan Insidental.</div></div>'
 }
 function renderTrend(){
  const tr=state.data.trend||[];$('trend').innerHTML=tr.map(x=>{const c=Math.max(2,Math.min(100,x.completion_pct??0)),a=Math.max(2,Math.min(100,x.attendance_pct??0));return `<div class="day"><div class="bars"><div class="bar c" style="height:${c}%"></div><div class="bar a" style="height:${a}%"></div></div><small>${dayShort(x.date)}</small></div>`}).join('')
 }
 function renderReport(){
- const d=state.data,s=d.summary,a=s.attendance||{},p=d.sections.pendamping,k=d.sections.kerohanian,b=d.sections.bk;$('reportDate').textContent=fmtDate(d.date);$('reportSummary').innerHTML=[
+ const d=state.data,s=d.summary,a=s.attendance||{},p=d.sections.pendamping,k=d.sections.kerohanian,b=d.sections.bk,i=d.incidental||{today_count:0,week_count:0};$('reportDate').textContent=fmtDate(d.date);$('reportSummary').innerHTML=[
   ['Pelaksanaan keseluruhan',s.completion_pct+'%'],
   ['Kehadiran tercatat',a.attendance_pct==null?'-':a.attendance_pct+'%'],
   ['Pendampingan selesai',`${p.completed}/${p.expected}`],
   ['Kerohanian selesai',`${k.completed}/${k.expected}`],
   ['Pendampingan BK aktif',b.active_sessions],
+  ['Kegiatan insidental hari ini',i.today_count||0],
+  ['Insidental 7 hari',i.week_count||0],
   ['Dokumentasi terbaru',(d.documents||[]).length+' foto']
  ].map(x=>`<div class="report-row"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')
 }
