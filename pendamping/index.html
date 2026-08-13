@@ -47,7 +47,7 @@ textarea{min-height:90px;resize:vertical}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .row{display:flex;gap:9px;align-items:center}
 .grow{flex:1}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:sticky;top:72px;z-index:25;background:var(--bg);padding:8px 0}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;position:sticky;top:72px;z-index:25;background:var(--bg);padding:8px 0}
 .tab{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 4px;text-align:center;font-size:10.5px;font-weight:850;color:#53666e}
 .tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
 .sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:13px 2px 8px}
@@ -108,6 +108,14 @@ textarea{min-height:90px;resize:vertical}
 .credit{font-size:9.5px;color:var(--muted);line-height:1.45;margin-top:8px;text-align:center}
 @media(min-width:560px){.teamgrid{grid-template-columns:repeat(3,1fr)}}
 
+.recap-controls{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.recap-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.recap-table{width:100%;border-collapse:collapse;font-size:9.5px}
+.recap-table th,.recap-table td{padding:7px 5px;border-bottom:1px solid #edf0f1;text-align:left;white-space:nowrap}
+.recap-table th{font-size:8.5px;color:var(--muted);text-transform:uppercase}
+.recap-table td.numc,.recap-table th.numc{text-align:center}
+.recap-scroll{overflow:auto}
+@media(max-width:560px){.recap-controls{grid-template-columns:1fr 1fr}.recap-controls .btn{grid-column:1/-1}}
 @media(min-width:700px){.groups{grid-template-columns:repeat(4,1fr)}.wrap{padding-left:20px;padding-right:20px}.tabs{top:74px}}
 </style>
 </head>
@@ -160,6 +168,7 @@ textarea{min-height:90px;resize:vertical}
       <button class="tab active" data-tab="today">Hari Ini</button>
       <button class="tab" data-tab="participants">Catar</button>
       <button class="tab" data-tab="history">Riwayat</button>
+      <button class="tab" data-tab="recap">Rekap</button>
       <button id="monitorTabBtn" class="tab" data-tab="monitor">Monitor</button>
     </nav>
 
@@ -193,6 +202,29 @@ textarea{min-height:90px;resize:vertical}
       <div class="card" id="historyList"><div class="empty">Buka tab ini untuk memuat riwayat.</div></div>
     </section>
 
+    <section id="tab-recap" class="hidden">
+      <div class="sectionhead"><h2>Rekap Pendamping</h2><small id="recapGroupLabel">-</small></div>
+      <div class="card">
+        <div class="recap-controls">
+          <div><label class="label" style="margin-top:0">Dari tanggal</label><input id="recapFrom" type="date"></div>
+          <div><label class="label" style="margin-top:0">Sampai tanggal</label><input id="recapTo" type="date"></div>
+          <button id="recapLoadBtn" class="btn primary">Tampilkan</button>
+        </div>
+        <div class="recap-actions">
+          <button class="btn small" onclick="setRecapDays(1)">Hari Ini</button>
+          <button class="btn small" onclick="setRecapDays(7)">7 Hari</button>
+          <button class="btn small" onclick="setRecapDays(30)">30 Hari</button>
+          <button class="btn small" onclick="exportRecapCSV()">Ekspor CSV</button>
+          <button class="btn small" onclick="window.print()">Cetak</button>
+        </div>
+      </div>
+      <div id="recapMetrics" class="info"></div>
+      <div class="sectionhead"><h2>Rekap per Catar-Catir</h2><small id="recapPeriodLabel">-</small></div>
+      <div id="recapParticipants" class="card recap-scroll"><div class="empty">Pilih periode lalu tampilkan rekap.</div></div>
+      <div class="sectionhead"><h2>Rekap Kegiatan</h2><small>berdasarkan pencatatan Pendamping</small></div>
+      <div id="recapActivities" class="card recap-scroll"></div>
+    </section>
+
     <section id="tab-monitor" class="hidden">
       <div class="sectionhead"><h2>Monitor Koordinator</h2><small id="monitorDateLabel">-</small></div>
       <div id="groupCards" class="groups"></div>
@@ -217,6 +249,7 @@ textarea{min-height:90px;resize:vertical}
 
 <script>
 const API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-companion';
+const RECAP_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-recap';
 const DAYS=['','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 const GROUPS=[
  {start:1,end:12,supervisor:'Fahriadi'},{start:13,end:24,supervisor:'Gerald'},
@@ -225,7 +258,7 @@ const GROUPS=[
  {start:73,end:80,supervisor:'Alexander Tumewu'}
 ];
 const STATUS_LABEL={present:'Hadir',late:'Terlambat',permit:'Izin',sick:'Sakit',absent:'Tidak Hadir'};
-const state={member:null,home:null,selectedGroup:null,date:null,members:[],monitor:null};
+const state={member:null,home:null,selectedGroup:null,date:null,members:[],monitor:null,recap:null};
 
 function $(id){return document.getElementById(id)}
 function pad(n){return String(n).padStart(2,'0')}
@@ -458,6 +491,51 @@ async function saveAssistant(code){
  try{await api('configure_assistant',{member_code:code,display_name:input.value.trim()});toast('Pendamping Taruna diperbarui.');await loadMonitor()}
  catch(e){toast(e.message,true)}
 }
+function isoOffset(dateStr,daysBack){
+ const d=new Date(dateStr+'T12:00:00+08:00');d.setDate(d.getDate()-daysBack);
+ return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Makassar',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)
+}
+function initRecapDates(){
+ const to=state.date||witaParts().date;$('recapTo').value=to;$('recapFrom').value=isoOffset(to,6)
+}
+function setRecapDays(days){
+ const to=state.date||witaParts().date;$('recapTo').value=to;$('recapFrom').value=isoOffset(to,Math.max(0,days-1));loadRecap()
+}
+async function recapApi(payload){
+ let r;try{r=await fetch(RECAP_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}catch{throw new Error('Tidak dapat terhubung ke server rekap.')}
+ let d={};try{d=await r.json()}catch{};if(!r.ok||!d.ok)throw new Error(d.error||`Server rekap ${r.status}`);return d
+}
+async function loadRecap(){
+ if(!state.member)return;
+ const from=$('recapFrom').value,to=$('recapTo').value;if(!from||!to)return toast('Pilih periode rekap.',true);
+ const btn=$('recapLoadBtn');setBusy(btn,true,'Memuat...');
+ try{
+   const payload={source:'pendamping',name:state.member.display_name,date_from:from,date_to:to};
+   if(state.member.full_access)payload.assignment_start=state.selectedGroup;
+   const d=await recapApi(payload);state.recap=d;renderRecap()
+ }catch(e){toast(e.message,true)}finally{setBusy(btn,false,'Tampilkan')}
+}
+function renderRecap(){
+ const d=state.recap;if(!d)return;const s=d.summary||{},a=s.attendance||{};
+ const g=state.home?.group;$('recapGroupLabel').textContent=g?`Kelompok ${pad(g.start)}–${pad(g.end)} • ${g.supervisor}`:'Rekap Pendamping';
+ $('recapPeriodLabel').textContent=`${formatDate(d.range.from)} – ${formatDate(d.range.to)}`;
+ $('recapMetrics').innerHTML=[
+  [s.completed||0,'Kegiatan Selesai'],[s.started||0,'Berlangsung'],[s.days_with_activity||0,'Hari Tercatat'],
+  [a.present||0,'Hadir'],[a.late||0,'Terlambat'],[a.attendance_pct==null?'-':a.attendance_pct+'%','Kehadiran']
+ ].map(x=>`<div class="metric"><strong>${x[0]}</strong><span>${x[1]}</span></div>`).join('');
+ const rows=d.per_participant||[];
+ $('recapParticipants').innerHTML=rows.length?`<table class="recap-table"><thead><tr><th>No</th><th>Nama</th><th class="numc">Hadir</th><th class="numc">Telat</th><th class="numc">Izin</th><th class="numc">Sakit</th><th class="numc">Tidak Hadir</th><th class="numc">%</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.code||pad(x.id))}</td><td>${esc(x.name)}</td><td class="numc">${x.present}</td><td class="numc">${x.late}</td><td class="numc">${x.permit}</td><td class="numc">${x.sick}</td><td class="numc">${x.absent}</td><td class="numc"><b>${x.attendance_pct==null?'-':x.attendance_pct+'%'}</b></td></tr>`).join('')}</tbody></table>`:'<div class="empty">Belum ada data peserta pada periode ini.</div>';
+ const acts=d.activity_breakdown||[];
+ $('recapActivities').innerHTML=acts.length?`<table class="recap-table"><thead><tr><th>Kegiatan</th><th class="numc">Selesai</th><th class="numc">Berlangsung</th><th class="numc">Total</th></tr></thead><tbody>${acts.map(x=>`<tr><td>${esc(x.activity_name)}</td><td class="numc">${x.completed}</td><td class="numc">${x.started}</td><td class="numc">${x.total_logs}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">Belum ada kegiatan tercatat.</div>'
+}
+function exportRecapCSV(){
+ const d=state.recap;if(!d)return toast('Tampilkan rekap terlebih dahulu.',true);
+ const lines=[['No','Nama','Prodi','Hadir','Terlambat','Izin','Sakit','Tidak Hadir','Persentase Kehadiran']];
+ for(const x of d.per_participant||[])lines.push([x.code||pad(x.id),x.name,x.program||'',x.present,x.late,x.permit,x.sick,x.absent,x.attendance_pct==null?'':x.attendance_pct]);
+ const csv='\ufeff'+lines.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`rekap-pendamping-${d.range.from}-${d.range.to}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
+}
+
 async function chooseGroup(start){
  state.selectedGroup=Number(start);$('groupSelector').value=String(start);
  showTab('today');await loadHome();
@@ -465,8 +543,9 @@ async function chooseGroup(start){
 
 function showTab(tab){
  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
- ['today','participants','history','monitor'].forEach(t=>$(`tab-${t}`).classList.toggle('hidden',t!==tab));
+ ['today','participants','history','recap','monitor'].forEach(t=>$(`tab-${t}`).classList.toggle('hidden',t!==tab));
  if(tab==='history')loadHistory();
+ if(tab==='recap'){if(!$('recapFrom').value)initRecapDates();loadRecap()}
  if(tab==='monitor')loadMonitor();
 }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
@@ -480,6 +559,7 @@ $('logoutTopBtn').addEventListener('click',doLogout);
 $('groupSelector').addEventListener('change',async e=>{state.selectedGroup=Number(e.target.value);await loadHome()});
 $('dateInput').addEventListener('change',async e=>{state.date=e.target.value;await loadHome();if(!document.getElementById('tab-monitor').classList.contains('hidden'))await loadMonitor()});
 $('todayBtn').addEventListener('click',async()=>{state.date=witaParts().date;$('dateInput').value=state.date;await loadHome()});
+$('recapLoadBtn').addEventListener('click',loadRecap);
 $('sheetClose').addEventListener('click',()=>$('activityOverlay').classList.add('hidden'));
 $('activityOverlay').addEventListener('click',e=>{if(e.target===$('activityOverlay'))$('activityOverlay').classList.add('hidden')});
 
