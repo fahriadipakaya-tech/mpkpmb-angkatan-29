@@ -50,6 +50,14 @@ textarea{min-height:90px;resize:vertical}
 .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:100;background:#241c30;color:#fff;padding:10px 13px;border-radius:12px;font-size:11px;box-shadow:0 10px 28px rgba(0,0,0,.25);display:none;max-width:90%}.toast.show{display:block}.toast.err{background:#8d251d}
 .legend{padding:10px 12px;border-radius:14px;background:#f0edf5;font-size:9.5px;color:#655d70;line-height:1.5;margin-bottom:10px}
 .recap-controls{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}.recap-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}.recap-table{width:100%;border-collapse:collapse;font-size:9.5px}.recap-table th,.recap-table td{padding:7px 5px;border-bottom:1px solid #eeeaf2;text-align:left;white-space:nowrap}.recap-table th{font-size:8.5px;color:var(--muted);text-transform:uppercase}.recap-table td.numc,.recap-table th.numc{text-align:center}.recap-scroll{overflow:auto}@media(max-width:560px){.recap-controls{grid-template-columns:1fr 1fr}.recap-controls .btn{grid-column:1/-1}}
+
+.docgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
+.docitem{border:1px solid var(--line);border-radius:12px;padding:7px;background:#fff}
+.docitem img{width:100%;height:120px;object-fit:cover;border-radius:9px;display:block}
+.doccap{font-size:9px;color:var(--muted);margin:5px 0;line-height:1.35}
+.photoctl{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
+@media(max-width:460px){.docitem img{height:100px}}
+
 @media(max-width:460px){.group-grid{grid-template-columns:1fr}.participant{grid-template-columns:34px 1fr 104px}.right{display:none}}
 </style>
 </head>
@@ -162,6 +170,59 @@ textarea{min-height:90px;resize:vertical}
 <script>
 const API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-spiritual';
 const RECAP_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-recap';
+
+const MEDIA_API='https://fplimalvdaedvxrzwqgl.supabase.co/functions/v1/mpk-media';
+async function mediaApi(payload){
+  let r;
+  try{r=await fetch(MEDIA_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}
+  catch{throw new Error('Tidak dapat terhubung ke server dokumentasi.')}
+  let d={}; try{d=await r.json()}catch{}
+  if(!r.ok||!d.ok)throw new Error(d.error||`Server dokumentasi ${r.status}`);
+  return d
+}
+async function compressPhoto(file){
+  if(!file||!file.type.startsWith('image/'))throw new Error('Pilih file foto.');
+  const url=URL.createObjectURL(file);
+  try{
+    const img=new Image();
+    await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error('Foto tidak dapat dibaca.'));img.src=url});
+    const max=1280, scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale));
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    canvas.getContext('2d',{alpha:false}).drawImage(img,0,0,w,h);
+    let quality=.72,blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality));
+    while(blob&&blob.size>850*1024&&quality>.42){quality-=.08;blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality))}
+    if(!blob)throw new Error('Gagal mengompres foto.');
+    if(blob.size>900*1024)throw new Error('Foto masih terlalu besar setelah kompresi.');
+    return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res({data:String(fr.result),mime:'image/jpeg',kb:Math.round(blob.size/1024)});fr.onerror=()=>rej(new Error('Gagal membaca foto.'));fr.readAsDataURL(blob)})
+  }finally{URL.revokeObjectURL(url)}
+}
+async function renderDocuments(source,recordId,containerId,worshipGroup=''){
+  const box=document.getElementById(containerId); if(!box)return;
+  box.innerHTML='<div class="note">Memuat dokumentasi...</div>';
+  try{
+    const d=await mediaApi({action:'list_documents',source,name:state.member.display_name,record_id:recordId,worship_group:worshipGroup});
+    const docs=d.documents||[];
+    box.innerHTML=`<div class="docgrid">${docs.map(x=>`<div class="docitem"><img src="${x.url}" alt="Dokumentasi"><div class="doccap">${esc(x.caption||'Dokumentasi kegiatan')}</div><button class="btn small" onclick="deleteDocument('${source}','${recordId}','${x.id}','${containerId}','${worshipGroup}')">Hapus</button></div>`).join('')}</div>
+    <div class="note">${docs.length}/${d.max_photos} foto tersimpan. Foto otomatis dikompres sebelum diunggah.</div>`;
+  }catch(e){box.innerHTML=`<div class="note">${esc(e.message)}</div>`}
+}
+async function uploadDocument(source,recordId,inputId,captionId,containerId,worshipGroup=''){
+  const inp=document.getElementById(inputId),file=inp?.files?.[0];if(!file)return toast('Pilih foto terlebih dahulu.',true);
+  try{
+    toast('Mengompres foto...');
+    const c=await compressPhoto(file);
+    await mediaApi({action:'upload_document',source,name:state.member.display_name,record_id:recordId,worship_group:worshipGroup,mime:c.mime,image_base64:c.data,caption:document.getElementById(captionId)?.value||''});
+    inp.value=''; const cap=document.getElementById(captionId);if(cap)cap.value='';
+    toast(`Foto tersimpan (${c.kb} KB).`);await renderDocuments(source,recordId,containerId,worshipGroup)
+  }catch(e){toast(e.message,true)}
+}
+async function deleteDocument(source,recordId,docId,containerId,worshipGroup=''){
+  if(!confirm('Hapus foto dokumentasi ini?'))return;
+  try{await mediaApi({action:'delete_document',source,name:state.member.display_name,record_id:recordId,document_id:docId,worship_group:worshipGroup});toast('Foto dihapus.');await renderDocuments(source,recordId,containerId,worshipGroup)}
+  catch(e){toast(e.message,true)}
+}
+
 const DAYS=['','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 const STATUS={present:'Hadir',late:'Terlambat',permit:'Izin',sick:'Sakit',absent:'Tidak Hadir'};
 const LABEL={islam:'Islam',christian_catholic:'Kristen & Katolik'};
@@ -247,20 +308,29 @@ function openLog(id){
   <div class="num">${esc(p.code||p.id)}</div><div><div class="pname">${esc(p.name)}</div><div class="prog">${esc(p.program||'')}</div></div>
   <select class="status" data-pid="${p.id}" ${done?'disabled':''}>${Object.entries(STATUS).map(([v,t])=>`<option value="${v}" ${v===st?'selected':''}>${t}</option>`).join('')}</select>
  </div>`}).join('')}</div></div>
- <div class="card"><label class="label" style="margin-top:0">Catatan Pembinaan</label><textarea id="notes" ${done?'disabled':''}>${esc(l.notes||'')}</textarea>${done?'<div class="note">Kegiatan ini sudah diselesaikan.</div>':`<button class="btn primary full" onclick="completeActivity('${l.id}')">SELESAIKAN KEGIATAN</button>`}</div>`;
- $('overlay').classList.remove('hidden')
+ <div class="card">
+   <label class="label" style="margin-top:0">Ringkasan Pelaksanaan</label><textarea id="activitySummary" ${done?'disabled':''} placeholder="Ringkasan singkat pelaksanaan ibadah.">${esc(l.activity_summary||'')}</textarea>
+   <label class="label">Temuan</label><textarea id="activityFindings" ${done?'disabled':''} placeholder="Temuan penting (bila ada).">${esc(l.findings||'')}</textarea>
+   <label class="label">Tindak Lanjut</label><textarea id="activityFollowUp" ${done?'disabled':''} placeholder="Tindak lanjut pembinaan (bila diperlukan).">${esc(l.follow_up||'')}</textarea>
+   <label class="label">Catatan Tambahan</label><textarea id="notes" ${done?'disabled':''}>${esc(l.notes||'')}</textarea>
+ </div>
+ ${(()=>{const s=(state.home.schedule||[]).find(x=>Number(x.id)===Number(l.spiritual_schedule_id));const special=new Set(['Ibadah Kamis Pagi','Ibadah Kamis Malam',"Ibadah Jum'at",'Ibadah Minggu']).has(s?.worship_type);return special?`<div class="card"><b style="font-size:12px">Dokumentasi Kegiatan Khusus (Opsional)</b><div class="note">Maksimal 1 foto. Ibadah rutin tidak memerlukan dokumentasi foto.</div><div class="photoctl"><input id="spPhoto" type="file" accept="image/*" capture="environment"><input id="spCaption" placeholder="Keterangan foto (opsional)"><button class="btn small primary" onclick="uploadDocument('kerohanian','${l.id}','spPhoto','spCaption','spDocs','${state.group}')">Unggah Foto</button></div><div id="spDocs"></div></div>`:''})()}
+ ${done?'<div class="card"><div class="note">Kegiatan ini sudah diselesaikan.</div></div>':`<div class="card"><button class="btn primary full" onclick="completeActivity('${l.id}')">SELESAIKAN KEGIATAN</button></div>`}`;
+ $('overlay').classList.remove('hidden');
+ const sc=(state.home.schedule||[]).find(x=>Number(x.id)===Number(l.spiritual_schedule_id));
+ if(new Set(['Ibadah Kamis Pagi','Ibadah Kamis Malam',"Ibadah Jum'at",'Ibadah Minggu']).has(sc?.worship_type))renderDocuments('kerohanian',l.id,'spDocs',state.group)
 }
 function filterP(){const q=$('searchP').value.toLowerCase();document.querySelectorAll('.prow').forEach(x=>x.style.display=x.dataset.search.includes(q)?'grid':'none')}
 async function completeActivity(id){
  const rows=[...document.querySelectorAll('select.status')].map(s=>({participant_id:Number(s.dataset.pid),status:s.value,note:''}));
  if(!rows.length)return toast('Daftar peserta kosong.',true);
- try{await api('complete_activity',{log_id:id,attendance:rows,notes:$('notes').value});$('overlay').classList.add('hidden');toast('Kegiatan ibadah selesai disimpan.');await loadHome()}catch(e){toast(e.message,true)}
+ try{await api('complete_activity',{log_id:id,attendance:rows,notes:$('notes').value,activity_summary:$('activitySummary').value,findings:$('activityFindings').value,follow_up:$('activityFollowUp').value});$('overlay').classList.add('hidden');toast('Kegiatan ibadah selesai disimpan.');await loadHome()}catch(e){toast(e.message,true)}
 }
 async function loadHistory(){
  const box=$('historyList');box.innerHTML='<div class="empty">Memuat...</div>';
  try{
   const d=await api('history'),sm=new Map(d.schedule.map(s=>[Number(s.id),s]));
-  box.innerHTML=d.logs.length?d.logs.map(l=>{const s=sm.get(Number(l.spiritual_schedule_id));return `<div class="historyitem"><strong>${esc(l.session_name)}</strong><small>${formatDate(l.activity_date)} • ${esc(l.executor_name)} • ${l.status==='completed'?'Selesai':'Berlangsung'}${l.notes?`<br>${esc(l.notes)}`:''}</small></div>`}).join(''):'<div class="empty">Belum ada riwayat pada bidang ini.</div>'
+  box.innerHTML=d.logs.length?d.logs.map(l=>{const s=sm.get(Number(l.spiritual_schedule_id));return `<div class="historyitem"><strong>${esc(l.session_name)}</strong><small>${formatDate(l.activity_date)} • ${esc(l.executor_name)} • ${l.status==='completed'?'Selesai':'Berlangsung'}${l.activity_summary?`<br>${esc(l.activity_summary)}`:''}${l.follow_up?`<br>Tindak lanjut: ${esc(l.follow_up)}`:''}</small></div>`}).join(''):'<div class="empty">Belum ada riwayat pada bidang ini.</div>'
  }catch(e){toast(e.message,true)}
 }
 function isoOffset(dateStr,daysBack){
