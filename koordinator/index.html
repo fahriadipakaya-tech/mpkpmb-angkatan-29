@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b5d67">
-<meta name="description" content="Control Center Koordinator MPK-PMB Angkatan XXIX">
-<title>MPK-PMB Control Center — Koordinator</title>
+<meta name="description" content="Planner kerja pribadi Koordinator MPK-PMB Angkatan XXIX">
+<title>Planner Koordinator MPK-PMB</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
@@ -14,147 +14,100 @@
 <div id="toast" class="toast"></div>
 
 <section id="loginView" class="login-shell">
-  <div class="login-card">
-    <div class="brandmark"><img src="../icon.svg" alt="Logo"><span>MPK-PMB XXIX</span></div>
-    <div class="eyebrow">AKSES PRIBADI KOORDINATOR</div>
-    <h1>Control Center</h1>
-    <p class="lead">Monitoring Catar-Catir, Pendamping, 18 Senior, kegiatan, evaluasi, dan tindak lanjut dalam satu aplikasi.</p>
-    <div class="identity-box">
-      <span>Pengguna</span><strong id="coordIdentity">Koordinator MPK-PMB</strong>
-    </div>
-    <label class="label" for="loginPin">PIN Akses</label>
-    <input id="loginPin" class="control" type="password" inputmode="numeric" maxlength="12" autocomplete="current-password" placeholder="6–12 angka">
-    <button id="loginBtn" class="btn primary full">MASUK CONTROL CENTER</button>
-    <p class="security-note">Aplikasi ini tidak menyediakan pilihan pengguna. Login selalu diarahkan ke akun Koordinator MPK-PMB. PIN tidak disimpan di perangkat.</p>
-  </div>
+ <div class="login-card">
+  <div class="brand"><img src="../icon.svg" alt="Logo"><div><b>MPK-PMB XXIX</b><small>Agustus–Desember 2026</small></div></div>
+  <div class="eyebrow">PLANNER PRIBADI KOORDINATOR</div>
+  <h1>Jadwal Kerja MPK-PMB</h1>
+  <p class="lead">Buka aplikasi, lihat apa yang harus dilakukan hari ini, kerjakan sesuai urutan, lalu tandai selesai.</p>
+  <div class="identity"><span>Pengguna</span><strong>Koordinator MPK-PMB</strong></div>
+  <label class="label">PIN Akses</label>
+  <input id="loginPin" class="control" type="password" inputmode="numeric" maxlength="12" placeholder="6–12 angka" autocomplete="current-password">
+  <button id="loginBtn" class="btn primary full">MASUK</button>
+  <p class="note">Tidak ada pilihan akun lain. PIN diverifikasi melalui server MPK-PMB.</p>
+ </div>
 </section>
 
-<section id="appView" class="app hidden">
-  <header class="topbar">
-    <div>
-      <div class="kicker">MPK-PMB ANGKATAN XXIX</div>
-      <h2>Koordinator Control Center</h2>
+<section id="appView" class="hidden">
+ <header class="topbar">
+  <div><div class="kicker">MPK-PMB ANGKATAN XXIX</div><h2>Planner Koordinator</h2></div>
+  <div class="top-actions"><span id="clock" class="clock">--:-- WITA</span><button id="refreshBtn" class="icon-btn">↻</button><button id="logoutBtn" class="icon-btn">⇥</button></div>
+ </header>
+
+ <div class="datebar">
+  <div><span>Tanggal kerja</span><input id="dateInput" type="date"></div>
+  <button id="todayBtn" class="btn small">Hari ini</button>
+  <div class="userchip"><b id="userName">Koordinator</b><small>akses pribadi</small></div>
+ </div>
+
+ <nav class="nav">
+  <button class="active" data-tab="today">Hari Ini</button>
+  <button data-tab="daily">Jadwal Harian</button>
+  <button data-tab="program">Kalender Program</button>
+  <button data-tab="special">Kegiatan Khusus</button>
+  <button data-tab="tasks">Tugas Saya</button>
+  <button data-tab="security">Keamanan</button>
+ </nav>
+
+ <main class="main">
+  <section id="tab-today" class="tabview">
+   <div class="hero">
+    <div><div id="todayEyebrow" class="eyebrow light">FOKUS HARI INI</div><h3 id="todayFocus">Memuat…</h3><p id="todayTarget">—</p></div>
+    <div class="nowbox"><span id="nowLabel">Sekarang</span><strong id="nowActivity">—</strong><small id="nextActivity">—</small></div>
+   </div>
+
+   <div id="todayMetrics" class="metrics"></div>
+
+   <div class="grid2">
+    <div class="panel">
+     <div class="sectionhead"><div><h3>Yang Harus Saya Kerjakan</h3><small>checklist Koordinator untuk tanggal yang dipilih</small></div><button id="addTaskTop" class="btn small">+ Tugas</button></div>
+     <div id="actionList" class="stack"></div>
     </div>
-    <div class="top-actions">
-      <span id="onlineBadge" class="status-dot">● Online</span>
-      <button class="icon-btn" id="refreshBtn" title="Perbarui">↻</button>
-      <button class="icon-btn" id="logoutBtn" title="Keluar">⇥</button>
+    <div class="panel">
+     <div class="sectionhead"><div><h3>Program Aktif</h3><small>paket program sesuai kalender MPK-PMB</small></div></div>
+     <div id="activePrograms" class="stack"></div>
+     <div class="sectionhead sub"><div><h3>Program Berikutnya</h3><small>yang perlu dipersiapkan</small></div></div>
+     <div id="nextPrograms" class="stack"></div>
     </div>
-  </header>
+   </div>
+  </section>
 
-  <div class="datebar">
-    <div><span class="muted">Tanggal pantau</span><input id="dateInput" type="date"></div>
-    <button id="todayBtn" class="btn small">Hari ini</button>
-    <div class="user-chip"><b id="userName">Koordinator</b><span id="userRole">Akses penuh</span></div>
-  </div>
+  <section id="tab-daily" class="tabview hidden">
+   <div class="sectionhead"><div><h3>Jadwal Operasional Harian</h3><small id="dailySubtitle">berdasarkan Juklak dan Pedoman Jadwal Operasional</small></div></div>
+   <div id="dailyTimeline" class="timeline"></div>
+  </section>
 
-  <nav class="nav" id="mainNav">
-    <button data-tab="dashboard" class="active">Ringkasan</button>
-    <button data-tab="groups">Kelompok</button>
-    <button data-tab="catar">Catar-Catir</button>
-    <button data-tab="senior">18 Senior</button>
-    <button data-tab="coaching">Pembinaan Senior</button>
-    <button data-tab="agenda">Agenda</button>
-    <button data-tab="assessment">Penilaian</button>
-    <button data-tab="issues">Tindak Lanjut</button>
-    <button data-tab="report">Laporan</button>
-    <button data-tab="security">Keamanan</button>
-  </nav>
+  <section id="tab-program" class="tabview hidden">
+   <div class="sectionhead"><div><h3>Kalender Program Agustus–Desember 2026</h3><small>seluruh paket kegiatan sudah dimasukkan ke aplikasi</small></div></div>
+   <div class="month-filter" id="monthFilter"></div>
+   <div id="programList" class="program-list"></div>
+  </section>
 
-  <main class="main">
-    <section id="tab-dashboard" class="tabview">
-      <div class="hero">
-        <div>
-          <div class="eyebrow">KONDISI TERKINI</div>
-          <h3 id="heroTitle">Memuat kondisi MPK-PMB…</h3>
-          <p id="heroText">Data bersumber dari aplikasi operasional yang sudah berjalan.</p>
-        </div>
-        <div class="hero-score"><strong id="heroPct">—</strong><span>pelaksanaan</span></div>
-      </div>
-      <div id="summaryCards" class="metrics metrics-4"></div>
-      <div class="grid-2">
-        <div class="panel"><div class="section-head"><div><h3>Area Pembinaan</h3><small>Pendamping • Kerohanian • BK</small></div></div><div id="areaCards" class="stack"></div></div>
-        <div class="panel"><div class="section-head"><div><h3>Perlu Perhatian</h3><small>prioritas Koordinator</small></div></div><div id="dashboardIssues" class="stack"></div></div>
-      </div>
-      <div class="panel"><div class="section-head"><div><h3>Progres 7 Kelompok</h3><small id="groupProgressDate">—</small></div></div><div id="dashboardGroups" class="group-grid"></div></div>
-    </section>
+  <section id="tab-special" class="tabview hidden">
+   <div class="sectionhead"><div><h3>Kegiatan Khusus</h3><small>seminar, evaluasi bulanan, penutupan dan agenda yang tanggalnya perlu ditetapkan</small></div></div>
+   <div id="specialList" class="program-list"></div>
+  </section>
 
-    <section id="tab-groups" class="tabview hidden">
-      <div class="section-head"><div><h3>Monitoring 7 Kelompok</h3><small>pelaksanaan kegiatan dan 14 Pendamping Taruna</small></div></div>
-      <div id="groupCards" class="group-grid"></div>
-      <div class="panel" id="groupDetailPanel">
-        <div class="section-head"><div><h3 id="groupDetailTitle">Pilih kelompok</h3><small id="groupDetailMeta">Klik “Buka” pada salah satu kelompok.</small></div></div>
-        <div id="groupDetail" class="empty">Belum ada kelompok yang dipilih.</div>
-      </div>
-    </section>
+  <section id="tab-tasks" class="tabview hidden">
+   <div class="sectionhead"><div><h3>Tugas Tambahan Saya</h3><small>untuk pekerjaan Koordinator di luar daftar otomatis</small></div><button id="addTaskBtn" class="btn primary small">+ Tambah Tugas</button></div>
+   <div id="customTaskList" class="stack"></div>
+  </section>
 
-    <section id="tab-catar" class="tabview hidden">
-      <div class="toolbar">
-        <select id="catarGroupFilter" class="control compact"></select>
-        <input id="catarSearch" class="control compact grow" placeholder="Cari nomor / nama / prodi…">
-      </div>
-      <div id="catarMetrics" class="metrics metrics-4"></div>
-      <div class="panel"><div class="section-head"><div><h3>Daftar Catar-Catir</h3><small id="catarCount">—</small></div></div><div id="catarList" class="participant-list"></div></div>
-    </section>
-
-    <section id="tab-senior" class="tabview hidden">
-      <div class="section-head"><div><h3>18 Taruna/Taruni Senior</h3><small>14 Pendamping Kelompok + 2 Kerohanian + 2 BK</small></div></div>
-      <div id="seniorMetrics" class="metrics metrics-4"></div>
-      <div class="panel"><div class="section-head"><div><h3>Pendamping Kelompok</h3><small>nama tersinkron dari aplikasi Pendamping</small></div></div><div id="groupSeniorList" class="senior-grid"></div></div>
-      <div class="grid-2">
-        <div class="panel"><div class="section-head"><div><h3>Senior Kerohanian</h3><small>2 orang</small></div></div><div id="spiritualSeniorList"></div></div>
-        <div class="panel"><div class="section-head"><div><h3>Taruni Senior BK</h3><small>2 orang pendamping sebaya</small></div></div><div id="bkSeniorList"></div></div>
-      </div>
-      <p class="privacy-note">Catatan senior pada aplikasi ini digunakan untuk pengelolaan pendampingan. Jangan menyalin isi konseling individual BK ke bagian ini.</p>
-    </section>
-
-    <section id="tab-coaching" class="tabview hidden">
-      <div class="section-head"><div><h3>Pembinaan & Coaching Senior</h3><small>pendamping juga harus didampingi</small></div><button id="newCoachingBtn" class="btn primary small">+ Catat Coaching</button></div>
-      <div id="coachingMetrics" class="metrics metrics-4"></div>
-      <div class="grid-2">
-        <div class="panel"><div class="section-head"><div><h3>Kalender Materi</h3><small>Agustus–Desember 2026</small></div></div><div id="trainingPlan" class="timeline"></div></div>
-        <div class="panel"><div class="section-head"><div><h3>Riwayat Coaching</h3><small>catatan Koordinator pada perangkat ini</small></div></div><div id="coachingList" class="stack"></div></div>
-      </div>
-    </section>
-
-    <section id="tab-agenda" class="tabview hidden">
-      <div class="section-head"><div><h3>Agenda & Kegiatan</h3><small>jadwal operasional dan kegiatan khusus/insidental</small></div><button id="newIncidentalBtn" class="btn primary small">+ Kegiatan Khusus</button></div>
-      <div class="grid-2">
-        <div class="panel"><div class="section-head"><div><h3>Jadwal Hari Ini</h3><small id="agendaDay">—</small></div></div><div id="agendaSchedule" class="stack"></div></div>
-        <div class="panel"><div class="section-head"><div><h3>Kegiatan Khusus / Insidental</h3><small>data tersimpan di server MPK-PMB</small></div></div><div id="incidentalList" class="stack"></div></div>
-      </div>
-    </section>
-
-    <section id="tab-assessment" class="tabview hidden">
-      <div class="section-head"><div><h3>Penilaian MPK-PMB</h3><small>PBB • Disiplin • Komputer • Karya Ilmiah • PPKK</small></div></div>
-      <div id="assessmentCards" class="score-grid"></div>
-      <div class="panel"><div class="section-head"><div><h3>Perbandingan Program Studi</h3><small>berdasarkan data penilaian tersimpan</small></div></div><div id="programScores" class="program-grid"></div></div>
-    </section>
-
-    <section id="tab-issues" class="tabview hidden">
-      <div class="section-head"><div><h3>Tindak Lanjut Koordinator</h3><small>isu operasional + tindak lanjut coaching senior</small></div></div>
-      <div class="grid-2"><div class="panel"><h3>Isu Operasional</h3><div id="allIssues" class="stack"></div></div><div class="panel"><h3>Follow-up Senior</h3><div id="seniorFollowups" class="stack"></div></div></div>
-    </section>
-
-    <section id="tab-report" class="tabview hidden">
-      <div class="section-head"><div><h3>Laporan Koordinator</h3><small>ringkasan siap cetak</small></div><button id="printBtn" class="btn small">Cetak</button></div>
-      <div id="reportContent" class="panel report"></div>
-    </section>
-
-    <section id="tab-security" class="tabview hidden">
-      <div class="grid-2">
-        <div class="panel"><h3>Keamanan Login</h3><p class="muted">Aplikasi hanya menampilkan login untuk akun Koordinator. PIN berada di server dan tidak disimpan di browser.</p><label class="label">PIN Baru</label><input id="newPin1" class="control" type="password" inputmode="numeric" maxlength="12"><label class="label">Ulangi PIN Baru</label><input id="newPin2" class="control" type="password" inputmode="numeric" maxlength="12"><button id="changePinBtn" class="btn primary">Ganti PIN</button></div>
-        <div class="panel"><h3>Privasi & Batas Data</h3><ul class="rules"><li>Isi konseling individual BK tidak ditampilkan di Control Center.</li><li>Gunakan data senior hanya untuk pembinaan, monitoring, dan tindak lanjut.</li><li>Jangan membagikan PIN atau membiarkan aplikasi terbuka pada perangkat umum.</li><li>Keluar dari aplikasi setelah selesai menggunakan perangkat yang bukan milik pribadi.</li></ul></div>
-      </div>
-    </section>
-  </main>
+  <section id="tab-security" class="tabview hidden">
+   <div class="panel narrow">
+    <h3>Ganti PIN</h3><p class="note">PIN yang sama digunakan oleh akun Koordinator pada sistem MPK-PMB.</p>
+    <label class="label">PIN baru</label><input id="newPin1" class="control" type="password" inputmode="numeric" maxlength="12">
+    <label class="label">Ulangi PIN baru</label><input id="newPin2" class="control" type="password" inputmode="numeric" maxlength="12">
+    <button id="changePinBtn" class="btn primary">Simpan PIN Baru</button>
+   </div>
+  </section>
+ </main>
 </section>
 
 <div id="modal" class="overlay hidden">
-  <div class="modal">
-    <div class="modal-head"><div><h3 id="modalTitle">Form</h3><small id="modalMeta"></small></div><button id="modalClose" class="icon-btn">×</button></div>
-    <div id="modalBody"></div>
-  </div>
+ <div class="modal">
+  <div class="modalhead"><div><h3 id="modalTitle">Kegiatan</h3><small id="modalMeta"></small></div><button id="modalClose" class="icon-btn">×</button></div>
+  <div id="modalBody"></div>
+ </div>
 </div>
 
 <script src="app.js"></script>
