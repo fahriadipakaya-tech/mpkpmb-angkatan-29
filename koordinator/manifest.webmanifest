@@ -1,0 +1,18 @@
+{
+  "name": "MPK-PMB Koordinator Control Center",
+  "short_name": "MPK Koordinator",
+  "description": "Aplikasi pribadi Koordinator MPK-PMB Angkatan XXIX untuk monitoring Catar-Catir dan pendamping senior.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f7f7",
+  "theme_color": "#0b5d67",
+  "icons": [
+    {
+      "src": "../icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
