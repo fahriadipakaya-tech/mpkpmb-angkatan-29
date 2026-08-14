@@ -40,6 +40,8 @@ button,input,select{font:inherit}.hidden{display:none!important}
  linear-gradient(90deg,rgba(43,97,140,.80) 0%,rgba(64,132,190,.72) 42%,rgba(93,164,220,.58) 72%,rgba(130,194,239,.38) 100%),
  linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.02));
  pointer-events:none}
+
+.hero-mobile-photo{display:none}
 .hero > *{position:relative;z-index:1}
 .hero-copy{display:grid;gap:10px;align-self:stretch}
 .hero-copy .eyebrow{opacity:.95;color:#e7f4ff}
@@ -95,10 +97,67 @@ button,input,select{font:inherit}.hidden{display:none!important}
 .rounds{display:grid;gap:7px}.round{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}.round h4{font-size:10px;margin:0 0 7px}
 .round-line{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.round-pill{background:#edf4f2;color:#325d84;border-radius:999px;padding:5px 8px;font-size:8px;font-weight:850}.arrow{font-size:10px;color:var(--muted)}
 
-@media(max-width:800px){.score-grid{grid-template-columns:repeat(2,1fr)}.program-grid{grid-template-columns:1fr}.hero{grid-template-columns:1fr;min-height:unset}.hero::before{background-position:center 28px;background-size:240px}.hero-ticker{grid-column:1/-1}.health{justify-self:start;width:125px;height:125px}.metrics{grid-template-columns:repeat(2,1fr)}.area-grid,.docs{grid-template-columns:1fr}.report-grid{grid-template-columns:1fr}.who{display:none}}
-@media(max-width:500px){.hero h2{font-size:22px}.health{width:130px;height:130px}.health strong{font-size:26px}.score-grid{grid-template-columns:1fr 1fr}.shell,.headin,.navin{padding-left:11px;padding-right:11px}.head-actions .iconbtn:first-child{display:none}.hero{padding:18px;border-radius:20px}.hero h2{font-size:21px}.health{width:112px;height:112px}.health strong{font-size:25px}.metric{padding:12px}.metric strong{font-size:21px}.nav a{font-size:8px}.datebar{justify-content:stretch}.datebar .control{flex:1;min-width:0}}
+@media(max-width:800px){
+ .score-grid{grid-template-columns:repeat(2,1fr)}
+ .program-grid{grid-template-columns:1fr}
+ .hero{grid-template-columns:1fr;min-height:unset;padding:18px;gap:14px}
+ .hero::before{display:none}
+ .hero::after{background:linear-gradient(145deg,rgba(67,151,210,.98),rgba(117,195,240,.95))}
+ .hero-mobile-photo{display:block;grid-column:1/-1;aspect-ratio:4/3;margin:-18px -18px 2px;border-radius:20px 20px 14px 14px;background-image:var(--hero-photo);background-size:cover;background-position:center center;background-repeat:no-repeat;box-shadow:0 8px 22px rgba(24,87,130,.18)}
+ .hero-copy{gap:11px}
+ .hero-copy .eyebrow{font-size:11px;letter-spacing:.04em}
+ .hero h2{font-size:27px;line-height:1.13}
+ .hero p{font-size:13px;line-height:1.55;max-width:none}
+ .hero-meta{font-size:11px;line-height:1.45}
+ .hero-bullets{gap:8px;margin-top:1px}
+ .hero-bullets button{width:10px;height:10px}
+ .hero-ticker{grid-column:1/-1;min-height:44px;padding:9px 11px;gap:8px}
+ .hero-ticker b{font-size:9.5px}
+ .ticker-track{height:22px}
+ .ticker-line{font-size:11px;line-height:22px}
+ .health{justify-self:start;width:128px;height:128px;border-width:8px}
+ .health strong{font-size:31px}
+ .health span{font-size:10px;line-height:1.25}
+ .health small{font-size:9px;line-height:1.2}
+ .metrics{grid-template-columns:repeat(2,1fr)}
+ .area-grid,.docs{grid-template-columns:1fr}
+ .report-grid{grid-template-columns:1fr}
+ .who{display:none}
+}
+@media(max-width:500px){
+ .score-grid{grid-template-columns:1fr 1fr}
+ .shell,.headin,.navin{padding-left:11px;padding-right:11px}
+ .head-actions .iconbtn:first-child{display:none}
+ .hero{padding:16px;border-radius:20px;gap:13px}
+ .hero-mobile-photo{margin:-16px -16px 3px;border-radius:20px 20px 13px 13px}
+ .hero-copy .eyebrow{font-size:10.5px}
+ .hero h2{font-size:25px;line-height:1.14}
+ .hero p{font-size:13px;line-height:1.55}
+ .hero-meta{font-size:10.5px;line-height:1.45}
+ .health{width:116px;height:116px;border-width:7px}
+ .health strong{font-size:29px}
+ .health span{font-size:9.5px}
+ .health small{font-size:8.5px}
+ .hero-ticker{min-height:46px;border-radius:12px;padding:9px 10px}
+ .hero-ticker b{font-size:9px}
+ .ticker-line{font-size:11px}
+ .metric{padding:12px}
+ .metric strong{font-size:21px}
+ .nav a{font-size:8px}
+ .datebar{justify-content:stretch}
+ .datebar .control{flex:1;min-width:0}
+}
+@media(max-width:380px){
+ .hero h2{font-size:23px}
+ .hero p{font-size:12.5px}
+ .hero-meta{font-size:10px}
+ .hero-ticker{display:grid;grid-template-columns:auto 1fr}
+ .ticker-line{font-size:10.5px}
+ .health{width:110px;height:110px}
+}
+
 @media print{
- .header,.nav,.datebar,.btn,.iconbtn{display:none!important}body{background:#fff}.main{padding:0}.shell{max-width:none;padding:0}.hero,.metric,.area,.issue,.doc,.panel{box-shadow:none;break-inside:avoid}.docs{grid-template-columns:repeat(2,1fr)}.section{margin-top:12px}
+ .header,.nav,.datebar,.btn,.iconbtn,.hero-mobile-photo{display:none!important}body{background:#fff}.main{padding:0}.shell{max-width:none;padding:0}.hero,.metric,.area,.issue,.doc,.panel{box-shadow:none;break-inside:avoid}.docs{grid-template-columns:repeat(2,1fr)}.section{margin-top:12px}
 }
 </style>
 </head>
@@ -140,6 +199,7 @@ button,input,select{font:inherit}.hidden{display:none!important}
 
  <section id="ringkasan" class="section">
   <div class="hero">
+   <div class="hero-mobile-photo" aria-label="Foto Kampus Politeknik KP Bitung"></div>
    <div class="hero-copy">
     <div class="eyebrow" id="heroEyebrow">Kondisi Umum MPK-PMB</div>
     <h2 id="heroTitle">Memuat kondisi kegiatan...</h2>
